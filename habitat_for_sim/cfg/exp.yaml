@@ -1,0 +1,41 @@
+# General
+seed: 42
+exp_name: view_sample
+output_parent_dir: results/sample1
+scenes_data_path: /data2/zejinw/data/scene_datasets/hm3d/val
+save_obs: true
+save_freq: 10
+multi_agent: true
+scenes_dir: /data2/zejinw/data/scene_datasets/hm3d/val
+json_file_path: /data2/zejinw/ON-MLLM/hm3d/ovon_data/hm3d/val_seen/content
+teacher_forcing_module: true
+simple_sample_method: true
+
+
+
+# Camera, image
+camera_height: 1.5
+camera_tilt_deg: -30
+img_width: 640
+img_height: 480
+hfov: 120
+tsdf_grid_size: 0.1
+margin_w_ratio: 0.25
+margin_h_ratio: 0.6
+
+# Navigation
+init_clearance: 0.5
+max_step_room_size_ratio: 3
+black_pixel_ratio: 0.5
+min_random_init_steps: 2
+
+visual_prompt:
+  cluster_threshold: 1.0
+  num_prompt_points: 3
+  num_max_unoccupied: 300
+  min_points_for_clustering: 3
+  point_min_dist: 2
+  point_max_dist: 10
+  cam_offset: 0.6
+  min_num_prompt_points: 2
+  circle_radius: 18
