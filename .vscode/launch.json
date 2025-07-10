@@ -1,0 +1,59 @@
+
+// Use IntelliSense to learn about possible attributes.
+// Hover to view descriptions of existing attributes.
+// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "baseline",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "python": "/home/zejinw/anaconda3/envs/zheyulin/bin/python"
+            
+        },
+
+        {
+            "name": "follow",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/goat_follow.py",
+            "args": [
+            ],
+            "env": {
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "/home/wangzejin/miniconda3/envs/habitat/bin/python"
+        },        {
+            "name": "split to train data",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/split.py",
+            "args": [
+            ],
+            "env": {
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "/home/wangzejin/miniconda3/envs/habitat/bin/python"
+        },
+        {
+            "name": "goat",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "goat_data_loader.py",
+            "args": [
+            ],
+            "env": {
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "/home/zejinw/anaconda3/envs/zheyulin/bin/python"
+        },
+    ]
+
+}

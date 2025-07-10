@@ -30,7 +30,7 @@ from habitat_sim.utils.common import quat_from_coeffs, quat_from_two_vectors , q
 from omegaconf import DictConfig
 # 将上级目录加入 Python 搜索路径
 sys.path.append(os.path.abspath(".."))
-from utils.explore.explore_habitat import (
+from habitat_for_sim.utils.explore.explore_habitat import (
     make_simple_cfg,
     pos_normal_to_habitat,
     pos_habitat_to_normal,
@@ -39,9 +39,9 @@ from utils.explore.explore_habitat import (
 )
 # from utils.project_direction import DirectionProjector
 from human_follower.save_data import save_output_to_h5, to_quat
-from utils.goat import read_yaml, extract_dict_from_folder, get_current_scene, process_episodes_and_goals, convert_to_scene_objects, find_scene_path, calculate_euclidean_distance
-from agent.path_generator import generate_path
-from utils.frontier_exploration import FrontierExploration
+from habitat_for_sim.utils.goat import read_yaml, extract_dict_from_folder, get_current_scene, process_episodes_and_goals, convert_to_scene_objects, find_scene_path, calculate_euclidean_distance
+from habitat_for_sim.agent.path_generator import generate_path
+from habitat_for_sim.utils.frontier_exploration import FrontierExploration
 from habitat_sim.utils import viz_utils as vut
 def simulate(sim, dt, get_observations=False):
     r"""Runs physics simulation at 60FPS for a given duration (dt) optionally collecting and returning sensor observations."""
@@ -130,6 +130,7 @@ def load_humanoid(sim):
             "auto_update_sensor_transform": True,
         }
     )
+    print("Physics backend:", sim.get_physics_simulation_library()) 
     humanoid = KinematicHumanoid(agent_cfg, sim)
     humanoid.reconfigure()
     humanoid.update()
@@ -307,7 +308,7 @@ if __name__ == "__main__":
     episodes_count = 0
     
     folder = "/home/wangzejin/habitat/goat_bench/data/datasets/goat_bench/hm3d/v1/train/content"
-    yaml_file_path = "/home/wangzejin/habitat/ON-MLLM/human_follower/cfg/exp.yaml"
+    yaml_file_path = "habitat_for_sim/cfg/exp.yaml"
     
     # 初始化目标文件列表
     target_files = []   
