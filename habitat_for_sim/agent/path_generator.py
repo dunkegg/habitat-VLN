@@ -479,7 +479,8 @@ def generate_path(path, pathfinder, window_size=10, height_threshold=0.1, max_ro
     
         # 计算朝向向量（单位向量）
         direction = end - start
-        if np.linalg.norm(direction) < 1e-1:
+        direction = [direction[0],0,direction[2]]
+        if np.linalg.norm(direction) < 1e-2:
             continue
     
         orientation = direction / np.linalg.norm(direction)
@@ -498,7 +499,8 @@ def generate_path(path, pathfinder, window_size=10, height_threshold=0.1, max_ro
     
         # 加入路径点
         processed_path.append((start.tolist(), quaternion))
-    
+    if len(processed_path) == 0:
+        return convert_path(processed_path)
     # 添加最后一个点
     # processed_path.append((optimized_path[-1], direction_to_combined_quaternion(np.array([0, 0, 1]))))
 
