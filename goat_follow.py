@@ -14,20 +14,9 @@ import random
 import logging
 from human_follower.hybrid_a.planner import HybridAStar
 
-from habitat.utils.visualizations.utils import (
-    append_text_underneath_image,
-    images_to_video,
-)
-from habitat.articulated_agents.humanoids.kinematic_humanoid import (
-    KinematicHumanoid,
-)
-from habitat.articulated_agent_controllers import (
-    HumanoidRearrangeController,
-    HumanoidSeqPoseController,
-)
 from habitat_sim.utils.common import quat_from_coeffs, quat_from_two_vectors , quat_from_angle_axis, quat_to_angle_axis # 把 [w,x,y,z] 转 Quaternion
 
-from omegaconf import DictConfig
+
 # 将上级目录加入 Python 搜索路径
 sys.path.append(os.path.abspath(".."))
 from habitat_for_sim.utils.explore.explore_habitat import (
@@ -43,506 +32,11 @@ from habitat_for_sim.utils.goat import read_yaml, extract_dict_from_folder, get_
 from habitat_for_sim.agent.path_generator import generate_path
 from habitat_for_sim.utils.frontier_exploration import FrontierExploration
 from habitat_sim.utils import viz_utils as vut
-def simulate(sim, dt, get_observations=False):
-    r"""Runs physics simulation at 60FPS for a given duration (dt) optionally collecting and returning sensor observations."""
-    observations = []
-    target_time = sim.get_world_time() + dt
-    while sim.get_world_time() < target_time:
-        sim.step_physics(0.1 / 60.0)
-        if get_observations:
-            observations.append(sim.get_sensor_observations())
-    return observations
-def to_vec3(v) -> mn.Vector3:
-    """接受 magnum.Vector3 或 list/tuple/np.ndarray"""
-    if isinstance(v, mn.Vector3):
-        return v
-    return mn.Vector3(float(v[0]), float(v[1]), float(v[2]))
-
-def quat_from_two_vectors_mn(v0, v1, eps=1e-8):
-    a = to_vec3(v0).normalized()
-    b = to_vec3(v1).normalized()
-    c = mn.math.clamp(mn.math.dot(a, b), -1.0, 1.0)
-
-    if c < -1.0 + eps:                       # 反向
-        orth = mn.Vector3(1,0,0) if abs(a.x) < 0.9 else mn.Vector3(0,1,0)
-        axis = mn.math.cross(a, orth).normalized()
-        return mn.Quaternion.rotation(mn.Rad(math.pi), axis)
-
-    axis  = mn.math.cross(a, b)
-    s     = math.sqrt((1.0 + c) * 2.0)
-    inv_s = 1.0 / s
-    # 这里用 (vector, scalar) 构造
-    q = mn.Quaternion(
-            mn.Vector3(axis.x * inv_s,
-                       axis.y * inv_s,
-                       axis.z * inv_s),
-            s * 0.5
-        ).normalized()
-    return q     
-
-# def quaternion_to_yaw(q):
-#     """
-#     q : mn.Quaternion  (w + xyz)
-#     返回绕 Y 轴的航向角（弧度），范围 (-π, π]
-#     """
-#     # y-up, z-forward 右手坐标系
-#     siny_cosp = 2.0 * (q.scalar * q.vector.y + q.vector.x * q.vector.z)
-#     cosy_cosp = 1.0 - 2.0 * (q.vector.y**2 + q.vector.z**2)
-#     return math.atan2(siny_cosp, cosy_cosp)
-
-# def convert_path(raw_path):
-#     """
-#     raw_path: [(pos_list, quat_wxyz), ...]
-#       pos_list -> [x,y,z]  or np.ndarray
-#       quat_wxyz -> [w,x,y,z] list / np.ndarray
-#     返回: [(mn.Vector3, float_yaw)]
-#     """
-#     out = []
-#     for pos_raw, quat_raw in raw_path:
-#         # 1) 位置
-#         pos_vec = mn.Vector3(pos_raw)
-#         # pos_vec.y += 1
-#         # 2) 四元数 → Magnum.Quaternion
-#         quat_raw = np.asarray(quat_raw, dtype=float)
-#         if quat_raw.shape != (4,):
-#             raise ValueError("四元数必须是长度 4 的 [w,x,y,z]")
-#         quat = mn.Quaternion(
-#             mn.Vector3(quat_raw[1], quat_raw[2], quat_raw[3]),
-#             quat_raw[0],
-#         )
-
-#         # 3) 取 yaw
-#         yaw = quaternion_to_yaw(quat)
-
-#         out.append((pos_vec,quat,yaw))
-#     return out
-def load_humanoid(sim):
-    names = ["female_0", "female_1", "female_2", "female_3", "male_0", "male_1", "male_2", "male_3"]
-    humanoid_name =  random.choice(names) 
-    data_root = "human_follower/habitat_humanoids"
-    urdf_path = f"{data_root}/{humanoid_name}/{humanoid_name}.urdf"
-    motion_pkl = f"{data_root}/{humanoid_name}/{humanoid_name}_motion_data_smplx.pkl"
-
-    agent_cfg = DictConfig(
-        {
-            "articulated_agent_urdf": urdf_path,
-            "motion_data_path": motion_pkl,
-            "auto_update_sensor_transform": True,
-        }
-    )
-    print("Physics backend:", sim.get_physics_simulation_library()) 
-    humanoid = KinematicHumanoid(agent_cfg, sim)
-    humanoid.reconfigure()
-    humanoid.update()
-
-    controller = HumanoidRearrangeController(walk_pose_path=motion_pkl)
-    controller.reset(humanoid.base_transformation)
-
-    return humanoid, controller
-
-# def load_interfering_humanoids(sim, num=2):#加了干扰行人
-#     humanoids = []
-#     controllers = []
-#     for _ in range(num):
-#         h, c = load_humanoid(sim)
-#         humanoids.append(h)
-#         controllers.append(c)
-#     return humanoids, controllers
-class InterferingHumanoid:
-    def __init__(self, sim, base_pos: mn.Vector3, num: int = 1):
-        self.sim = sim
-        self.humanoids = []
-        self.controllers = []
-        for _ in range(num):
-            h, c = load_humanoid(sim)
-            h.base_pos = base_pos  # 临时位置
-            self.humanoids.append(h)
-            self.controllers.append(c)
-
-    def _random_offset_pos(self, goal_pos: mn.Vector3, radius=2.0):
-        """在goal_pos附近随机偏移一个位置"""
-        angle = np.random.uniform(0, 2 * math.pi)
-        offset = mn.Vector3(math.cos(angle), 0, math.sin(angle)) * radius
-        return goal_pos + offset
-
-    def place_near_goal(self, goal_pos: mn.Vector3, radius=2.0):
-        """将每个干扰行人直接放置在 goal_pos 周围的偏移位置上"""
-        for humanoid in self.humanoids:
-            new_pos = self._random_offset_pos(goal_pos, radius)
-            humanoid.base_pos = new_pos
-            humanoid.base_rot = np.random.uniform(-math.pi, math.pi)  # 随机朝向
 
 
-def shortest_angle_diff(a, b):
-    """
-    返回 b−a 的最短角差，范围 (-π, π]
-    """
-    diff = (b - a + math.pi) % (2 * math.pi) - math.pi
-    return diff
+from human_follower.walk_behavior import walk_along_path_multi
+from human_follower.human_agent import AgentHumanoid
 
-
-
-# def generate_interfering_path(start_pos, goal_pos, pathfinder, angle_deg_range=30, filt_distance=0.2):
-#     mid = (start_pos + goal_pos) * 0.5
-#     vec = goal_pos - start_pos
-#     if vec.length() < 1e-4:
-#         return []
-#     forward = vec.normalized()
-#     angle_rad = math.radians(np.random.uniform(-angle_deg_range, angle_deg_range))
-#     cos, sin = math.cos(angle_rad), math.sin(angle_rad)
-#     rotated = mn.Vector3(
-#         forward.x * cos - forward.z * sin,
-#         0,
-#         forward.x * sin + forward.z * cos
-#     ).normalized()
-#     p1 = mid + rotated * 2.0
-#     p2 = mid - rotated * 2.0
-#     return generate_path([p1, mid, p2], pathfinder, filt_distance=filt_distance, visualize=False)
-
-
-# def walk_along_interfering_path(humanoid, controller, path, sim, fps=10, forward_speed=0.5, height=0.0):
-#     for j in range(1, len(path)):
-#         start, _, start_yaw = path[j - 1]
-#         end, _, end_yaw = path[j]
-#         seg_vec = end - start
-#         seg_len = seg_vec.length()
-#         if seg_len < 1e-4:
-#             continue
-#         direction = seg_vec.normalized()
-#         yaw_diff = end_yaw - start_yaw
-#         step_dist = forward_speed / fps
-#         n_steps = int(np.ceil(seg_len / step_dist))
-#         for step in range(n_steps):
-#             humanoid.base_pos += direction * step_dist
-#             frac = (step + 1) / n_steps
-#             humanoid.base_rot = start_yaw + yaw_diff * frac
-#             move_pos = humanoid.base_pos
-#             move_quat = quat_from_angle_axis(humanoid.base_rot, np.array([0, 1, 0]))
-
-#             controller.calculate_walk_pose(seg_vec)
-#             new_pose = controller.get_pose()
-#             new_joints = new_pose[:-16]
-#             new_pos_transform_base = new_pose[-16:]
-#             new_pos_transform_offset = new_pose[-32:-16]
-
-#             if np.array(new_pos_transform_offset).sum() != 0:
-#                 vecs_base = [mn.Vector4(new_pos_transform_base[i * 4 : (i + 1) * 4]) for i in range(4)]
-#                 vecs_offset = [mn.Vector4(new_pos_transform_offset[i * 4 : (i + 1) * 4]) for i in range(4)]
-#                 humanoid.set_joint_transform(
-#                     new_joints, mn.Matrix4(*vecs_offset), mn.Matrix4(*vecs_base)
-#                 )
-#                 humanoid.base_pos = move_pos
-
-#             sim.step_physics(1.0 / fps)
-
-
-def walk_along_path_multi(
-    all_index,
-    sim,
-    humanoid,
-    controller,
-    human_path,
-    fps=10,
-    forward_speed=0.7,
-    interfering_humanoids=None,  # 只保留这个
-):
-    output = {"obs": [], "follow_paths": []}
-    height_bias = 0
-    keep_distance = 0.7
-
-    for i in range(len(human_path)):
-        pos, quat, yaw = human_path[i]
-        new_pos = mn.Vector3(pos.x, pos.y - height_bias, pos.z)
-        human_path[i] = (new_pos, quat, yaw)
-
-    observations = []
-    humanoid.base_pos = human_path[0][0]
-    humanoid.base_rot = human_path[0][2]
-    follow_state = sim.agents[0].get_state()
-    human_state = sim.agents[0].get_state()
-    follow_state.position = humanoid.base_pos
-    follow_state.rotation = to_quat(human_path[0][1])
-    follow_yaw = human_path[0][2]
-    sim.agents[0].set_state(follow_state)
-
-    move_dis = 0
-    sample_list = [random.uniform(2, 2.5), random.uniform(3, 3.5)]
-    record_range = random.uniform(3, 5)
-
-    for k in range(1, len(human_path)):
-        goal_pos, goal_quat, goal_yaw = human_path[k]
-        start_pos = humanoid.base_pos
-        seg_vec = goal_pos - start_pos
-        seg_len = seg_vec.length()
-        move_dis += seg_len
-        if seg_len < 1e-4:
-            continue
-
-        start_yaw = humanoid.base_rot
-        yaw_diff = shortest_angle_diff(start_yaw, goal_yaw)
-        direction = seg_vec.normalized()
-        step_dist = forward_speed / fps
-        n_steps = int(np.ceil(seg_len / step_dist))
-
-        # --- 插入干扰人形横穿 ---
-        # if interfering_humanoids and interfering_controllers:
-        #     for i in range(len(interfering_humanoids)):
-        #         inter_path = generate_interfering_path(start_pos, goal_pos, sim.pathfinder)
-        #         if len(inter_path) >= 2:
-        #             walk_along_interfering_path(
-        #                 interfering_humanoids[i],
-        #                 interfering_controllers[i],
-        #                 inter_path,
-        #                 sim,
-        #                 fps=fps,
-        #                 forward_speed=0.5,
-        #                 height=humanoid.base_pos.y,
-        #             )
-        # --- 静态放置干扰人形 ---
-        if interfering_humanoids:
-            interfering_humanoids.place_near_goal(goal_pos, radius=2.0)
-        
-
-        for step in range(n_steps):
-            humanoid.base_pos += direction * step_dist
-            frac = (step + 1) / n_steps
-            humanoid.base_rot = start_yaw + yaw_diff * frac
-            move_pos = humanoid.base_pos
-            move_quat = quat_from_angle_axis(humanoid.base_rot, np.array([0, 1, 0]))
-            human_state.position = move_pos
-            human_state.rotation = move_quat
-
-            controller.calculate_walk_pose(seg_vec)
-            new_pose = controller.get_pose()
-            new_joints = new_pose[:-16]
-            new_pos_transform_base = new_pose[-16:]
-            new_pos_transform_offset = new_pose[-32:-16]
-
-            if np.array(new_pos_transform_offset).sum() != 0:
-                vecs_base = [mn.Vector4(new_pos_transform_base[i * 4 : (i + 1) * 4]) for i in range(4)]
-                vecs_offset = [mn.Vector4(new_pos_transform_offset[i * 4 : (i + 1) * 4]) for i in range(4)]
-                humanoid.set_joint_transform(
-                    new_joints, mn.Matrix4(*vecs_offset), mn.Matrix4(*vecs_base)
-                )
-                humanoid.base_pos = move_pos
-
-            sim.step_physics(1.0 / fps)
-
-        shortest_path = habitat_sim.ShortestPath()
-        if move_dis > record_range:
-            shortest_path.requested_start = follow_state.position
-            shortest_path.requested_end = goal_pos
-            if sim.pathfinder.find_path(shortest_path):
-                move_dis = 0
-                record_range = random.uniform(3, 5)
-                sample_list = []
-                new_path = generate_path(shortest_path.points, sim.pathfinder, filt_distance=keep_distance, visualize=False)
-                for i in range(len(new_path)):
-                    follow_state.position = new_path[i][0]
-                    follow_state.rotation = to_quat(new_path[i][1])
-                    follow_yaw = new_path[i][2]
-                    sim.agents[0].set_state(follow_state)
-                    obs = sim.get_sensor_observations(0)
-                    observations.append(obs.copy())
-                    follow_data = {
-                        "obs_idx": len(observations) - 1,
-                        "follow_state": new_path[i],
-                        "human_state": human_path[k],
-                        "path": new_path[i:],
-                        "type": 0,
-                    }
-                    output["follow_paths"].append(follow_data)
-            else:
-                obs = sim.get_sensor_observations(0)
-                observations.append(obs.copy())
-        else:
-            obs = sim.get_sensor_observations(0)
-            observations.append(obs.copy())
-            shortest_path.requested_start = follow_state.position
-            shortest_path.requested_end = goal_pos
-            if len(sample_list) > 0 and move_dis > sample_list[0]:
-                if sim.pathfinder.find_path(shortest_path):
-                    del sample_list[0]
-                    new_path = generate_path(shortest_path.points, sim.pathfinder, filt_distance=keep_distance, visualize=False)
-                    follow_data = {
-                        "obs_idx": len(observations) - 1,
-                        "follow_state": (follow_state.position, follow_state.rotation, follow_yaw),
-                        "human_state": human_path[k],
-                        "path": new_path,
-                        "type": 1,
-                    }
-                    output["follow_paths"].append(follow_data)
-
-    output["obs"] = observations
-    if all_index < 20:
-        vut.make_video(
-            observations,
-            "color_0_0",
-            "color",
-            f"results/humanoid_wrapper_{all_index}",
-            open_vid=False,
-        )
-    print("walk done")
-    return output
-
-
-
-'''以下为原始的'''
-def walk_along_path(all_index, sim, humanoid, controller, human_path, fps=10, forward_speed=0.7):
-    
-    output = {"obs":[], "follow_paths":[]}
-    """
-    path: [(mn.Vector3 pos, float yaw_rad), ...]
-    """
-    height_bias = 0
-    keep_distance = 0.7
-    for i in range(len(human_path)):
-        pos, quat, yaw = human_path[i]            # 解包原 tuple
-        new_pos  = mn.Vector3(pos.x, pos.y- height_bias, pos.z)
-        human_path[i]  = (new_pos,quat, yaw)   
-
-
-    observations=[]
-    humanoid.base_pos = human_path[0][0]
-    humanoid.base_rot = human_path[0][2]
-    count = 0
-    human_pos = []
-    follow_pos = humanoid.base_pos
-    follow_state = sim.agents[0].get_state()
-    human_state = sim.agents[0].get_state()
-    follow_state.position = humanoid.base_pos
-    # follow_state.position.y = 0.2
-    follow_state.rotation = to_quat(human_path[0][1])
-    follow_yaw = human_path[0][2]
-    sim.agents[0].set_state(follow_state)
-    planner = HybridAStar(
-        xy_resolution=0.1,
-        yaw_resolution=math.radians(5),
-        sim=sim,
-        height = follow_state.position.y,
-    )
-
-    follow_index = 0
-    move_dis = 0
-    sample_list = [random.uniform(2, 2.5), random.uniform(3, 3.5)]
-    record_range =  random.uniform(3, 5)
-    for k in range(1, len(human_path)):
-        goal_pos, goal_quat,goal_yaw = human_path[k]
-
-        # 位移向量
-        start_pos = humanoid.base_pos
-        seg_vec   = goal_pos - start_pos
-        seg_len   = seg_vec.length()
-        move_dis += seg_len
-        if seg_len < 1e-4:
-            continue
-
-        # 朝向增量
-        start_yaw = humanoid.base_rot            # 当前 yaw (float)
-        yaw_diff  = shortest_angle_diff(start_yaw, goal_yaw)
-
-        # 行走分段
-        direction = seg_vec.normalized()
-        step_dist = forward_speed / fps
-        n_steps   = int(np.ceil(seg_len / step_dist))
-        
-        for step in range(n_steps):
-            # --- 1) 平移 ---
-            humanoid.base_pos += direction * step_dist
-
-            # --- 2) 线性插值 yaw ---
-            frac = (step + 1) / n_steps        # 0→1
-            humanoid.base_rot = start_yaw + yaw_diff * frac
-            move_pos = humanoid.base_pos
-            move_yaw = humanoid.base_rot
-            move_quat = quat_from_angle_axis(humanoid.base_rot, np.array([0, 1, 0]))
-            human_pos.append([move_pos,move_quat])
-            human_state.position = move_pos
-            human_state.rotation = move_quat
-            # --- 3) 步行动画，一帧 pose ---
-            controller.calculate_walk_pose(seg_vec)   # 方向矢量给即可
-            new_pose = controller.get_pose()
-
-            new_joints = new_pose[:-16]
-            new_pos_transform_base = new_pose[-16:]
-            new_pos_transform_offset = new_pose[-32:-16]
-
-            if np.array(new_pos_transform_offset).sum() != 0:
-                vecs_base = [
-                    mn.Vector4(new_pos_transform_base[i * 4 : (i + 1) * 4])
-                    for i in range(4)
-                ]
-                vecs_offset = [
-                    mn.Vector4(new_pos_transform_offset[i * 4 : (i + 1) * 4])
-                    for i in range(4)
-                ]
-                new_transform_offset = mn.Matrix4(*vecs_offset)
-                new_transform_base = mn.Matrix4(*vecs_base)
-                humanoid.set_joint_transform(
-                    new_joints, new_transform_offset, new_transform_base
-                )
-                humanoid.base_pos = move_pos
-
-
-            sim.step_physics(1.0 / fps)
-        count+=1
-
-        follow_rot, _ = quat_to_angle_axis(follow_state.rotation)
-        # path = planner.plan((follow_state.position.x,follow_state.position.y, follow_rot), (humanoid.base_pos.x,humanoid.base_pos.y,humanoid.base_rot))
-        if len(sample_list)==0:
-            sample_list = [random.uniform(2, 2.5), random.uniform(3, 3.5)]
-        shortest_path = habitat_sim.ShortestPath()
-
-
-        if move_dis > record_range:
-            shortest_path.requested_start = follow_state.position
-            shortest_path.requested_end = goal_pos
-            if sim.pathfinder.find_path(shortest_path):
-                move_dis = 0
-                record_range = random.uniform(3, 5)
-                sample_list=[]
-
-                new_path = generate_path(shortest_path.points,sim.pathfinder, filt_distance = keep_distance, visualize=False)
-                for i in range(len(new_path)):
-                    follow_state.position = new_path[i][0]
-                    follow_state.rotation = to_quat(new_path[i][1])
-                    follow_yaw  = new_path[i][2]
-                    sim.agents[0].set_state(follow_state)
-                    obs = sim.get_sensor_observations(0)          
-                    observations.append(obs.copy())
-                    follow_data = {"obs_idx": len(observations)-1, "follow_state": new_path[i], "human_state": human_path[k],
-                                   "path": new_path[i:], "type": 0
-                                    }
-                    output["follow_paths"].append(follow_data)  
-            else:
-                obs = sim.get_sensor_observations(0)          
-                observations.append(obs.copy())                  
-        else:
-            obs = sim.get_sensor_observations(0)         
-            observations.append(obs.copy())  
-            shortest_path.requested_start = follow_state.position
-            shortest_path.requested_end = goal_pos
-            if len(sample_list)>0 and move_dis>sample_list[0]:
-                if sim.pathfinder.find_path(shortest_path):
-                    del sample_list[0]
-                    new_path = generate_path(shortest_path.points,sim.pathfinder, filt_distance = keep_distance, visualize=False)
-                    follow_data = {"obs_idx": len(observations)-1, "follow_state":(follow_state.position, follow_state.rotation, follow_yaw), "human_state": human_path[k],
-                    "path": new_path, "type": 1
-                    }
-                    output["follow_paths"].append(follow_data)   
-
-    
-    output["obs"] = observations
-    if all_index <20:
-        vut.make_video(
-            observations,
-            "color_0_0",
-            "color",
-            f"results/humanoid_wrapper_{all_index}",
-            open_vid=False,
-        )
-    print("walk done")
-    return output
 
 # Example usage
 if __name__ == "__main__":
@@ -632,24 +126,20 @@ if __name__ == "__main__":
             continue
             raise RuntimeError("Failed to load or generate navmesh.")   
 
-        # direction_projector = DirectionProjector(cfg.hfov, 'depth_sensor', 7)
-        # human_agent = simulator.initialize_agent(sim_settings["default_agent"][0])
-        # follow_agent = simulator.initialize_agent(sim_settings["default_agent"][1])
-        # human_state = habitat_sim.AgentState()
-        # follow_state = habitat_sim.AgentState()
-        # obj_mgr = simulator.get_object_template_manager()
-        # humanoid_template_ids = obj_mgr.load_configs("human_follower/human_model/as")
-        # # handle = obj_mgr.get_template_handles("human_follower/human_model")
-        # # humanoid_template_id = obj_mgr.load_template(handle)
-        # agent_node = human_agent.scene_node
 
-        # # 2. 添加刚体对象，并设置 parent 为 agent_node
-        # rigid_mgr = simulator.get_rigid_object_manager()
-        # human = rigid_mgr.add_object_by_template_id(humanoid_template_ids[0], attachment_node=agent_node)
-        # human.motion_type = habitat_sim.physics.MotionType.KINEMATIC
-        humanoid, controller = load_humanoid(simulator)
         # interfering_humanoids, interfering_controllers = load_interfering_humanoids(simulator, num=2)
-        interfering_humanoids = InterferingHumanoid(simulator, base_pos=mn.Vector3(0, 0.2, 0), num=2)
+        # 原主目标人
+        target_humanoid = AgentHumanoid(
+            simulator,
+            base_pos=mn.Vector3(0, 0.2, 0),
+            # motion_path="human_follower/habitat_humanoids/female_0/female_0_motion_data_smplx.pkl",
+            is_target=True
+        )
+
+        # 干扰人可定义多个实例
+        interferer_1 = AgentHumanoid(simulator, base_pos=mn.Vector3(0, 0.2, 0))
+        interferer_2 = AgentHumanoid(simulator, base_pos=mn.Vector3(0, 0.2, 0))
+
 
         # # 起点对齐
         # humanoid.base_pos = custom_path[0][0]
@@ -742,15 +232,7 @@ if __name__ == "__main__":
             #     all_index, simulator, humanoid, controller, new_path, fps=10,
             #     interfering_humanoids=interfering_humanoids,
             #     interfering_controllers=interfering_controllers,
-            #     pathfinder=simulator.pathfinder,)
-
-            #     save_output_to_h5(output_data, f"results/new_hdf5/episode_{all_index}.hdf5")
-            #     episodes_count += len(output_data["follow_paths"])
-            #     all_index+=1
-            #     print(f"Already has {episodes_count} cases")
-            # except Exception as e:   
-            #     print(f"Error !!!!!!!: {e}")
-            #     continue
+            #     pathfinder=simulator.pathfinder,)_random_offset_pos
             
             # output_data = walk_along_path_multi(
             # all_index, simulator, humanoid, controller, new_path, fps=10,
@@ -758,7 +240,15 @@ if __name__ == "__main__":
             # interfering_controllers=interfering_controllers,
             # pathfinder=simulator.pathfinder)
             
+            # 目标人移动
             output_data = walk_along_path_multi(
-            all_index, simulator, humanoid, controller, new_path, fps=10,
-            interfering_humanoids=interfering_humanoids)
+            all_index=all_index,
+            sim=simulator,
+            humanoid_agent=target_humanoid,
+            human_path=new_path,
+            fps=10,
+            interfering_humanoids=[interferer_1, interferer_2]
+)
+
+
             print("done")
