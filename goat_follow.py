@@ -140,14 +140,37 @@ def load_humanoid(sim):
 
     return humanoid, controller
 
-def load_interfering_humanoids(sim, num=2):#加了干扰行人
-    humanoids = []
-    controllers = []
-    for _ in range(num):
-        h, c = load_humanoid(sim)
-        humanoids.append(h)
-        controllers.append(c)
-    return humanoids, controllers
+# def load_interfering_humanoids(sim, num=2):#加了干扰行人
+#     humanoids = []
+#     controllers = []
+#     for _ in range(num):
+#         h, c = load_humanoid(sim)
+#         humanoids.append(h)
+#         controllers.append(c)
+#     return humanoids, controllers
+class InterferingHumanoid:
+    def __init__(self, sim, base_pos: mn.Vector3, num: int = 1):
+        self.sim = sim
+        self.humanoids = []
+        self.controllers = []
+        for _ in range(num):
+            h, c = load_humanoid(sim)
+            h.base_pos = base_pos  # 临时位置
+            self.humanoids.append(h)
+            self.controllers.append(c)
+
+    def _random_offset_pos(self, goal_pos: mn.Vector3, radius=2.0):
+        """在goal_pos附近随机偏移一个位置"""
+        angle = np.random.uniform(0, 2 * math.pi)
+        offset = mn.Vector3(math.cos(angle), 0, math.sin(angle)) * radius
+        return goal_pos + offset
+
+    def place_near_goal(self, goal_pos: mn.Vector3, radius=2.0):
+        """将每个干扰行人直接放置在 goal_pos 周围的偏移位置上"""
+        for humanoid in self.humanoids:
+            new_pos = self._random_offset_pos(goal_pos, radius)
+            humanoid.base_pos = new_pos
+            humanoid.base_rot = np.random.uniform(-math.pi, math.pi)  # 随机朝向
 
 
 def shortest_angle_diff(a, b):
@@ -159,58 +182,58 @@ def shortest_angle_diff(a, b):
 
 
 
-def generate_interfering_path(start_pos, goal_pos, pathfinder, angle_deg_range=30, filt_distance=0.2):
-    mid = (start_pos + goal_pos) * 0.5
-    vec = goal_pos - start_pos
-    if vec.length() < 1e-4:
-        return []
-    forward = vec.normalized()
-    angle_rad = math.radians(np.random.uniform(-angle_deg_range, angle_deg_range))
-    cos, sin = math.cos(angle_rad), math.sin(angle_rad)
-    rotated = mn.Vector3(
-        forward.x * cos - forward.z * sin,
-        0,
-        forward.x * sin + forward.z * cos
-    ).normalized()
-    p1 = mid + rotated * 2.0
-    p2 = mid - rotated * 2.0
-    return generate_path([p1, mid, p2], pathfinder, filt_distance=filt_distance, visualize=False)
+# def generate_interfering_path(start_pos, goal_pos, pathfinder, angle_deg_range=30, filt_distance=0.2):
+#     mid = (start_pos + goal_pos) * 0.5
+#     vec = goal_pos - start_pos
+#     if vec.length() < 1e-4:
+#         return []
+#     forward = vec.normalized()
+#     angle_rad = math.radians(np.random.uniform(-angle_deg_range, angle_deg_range))
+#     cos, sin = math.cos(angle_rad), math.sin(angle_rad)
+#     rotated = mn.Vector3(
+#         forward.x * cos - forward.z * sin,
+#         0,
+#         forward.x * sin + forward.z * cos
+#     ).normalized()
+#     p1 = mid + rotated * 2.0
+#     p2 = mid - rotated * 2.0
+#     return generate_path([p1, mid, p2], pathfinder, filt_distance=filt_distance, visualize=False)
 
 
-def walk_along_interfering_path(humanoid, controller, path, sim, fps=10, forward_speed=0.5, height=0.0):
-    for j in range(1, len(path)):
-        start, _, start_yaw = path[j - 1]
-        end, _, end_yaw = path[j]
-        seg_vec = end - start
-        seg_len = seg_vec.length()
-        if seg_len < 1e-4:
-            continue
-        direction = seg_vec.normalized()
-        yaw_diff = end_yaw - start_yaw
-        step_dist = forward_speed / fps
-        n_steps = int(np.ceil(seg_len / step_dist))
-        for step in range(n_steps):
-            humanoid.base_pos += direction * step_dist
-            frac = (step + 1) / n_steps
-            humanoid.base_rot = start_yaw + yaw_diff * frac
-            move_pos = humanoid.base_pos
-            move_quat = quat_from_angle_axis(humanoid.base_rot, np.array([0, 1, 0]))
+# def walk_along_interfering_path(humanoid, controller, path, sim, fps=10, forward_speed=0.5, height=0.0):
+#     for j in range(1, len(path)):
+#         start, _, start_yaw = path[j - 1]
+#         end, _, end_yaw = path[j]
+#         seg_vec = end - start
+#         seg_len = seg_vec.length()
+#         if seg_len < 1e-4:
+#             continue
+#         direction = seg_vec.normalized()
+#         yaw_diff = end_yaw - start_yaw
+#         step_dist = forward_speed / fps
+#         n_steps = int(np.ceil(seg_len / step_dist))
+#         for step in range(n_steps):
+#             humanoid.base_pos += direction * step_dist
+#             frac = (step + 1) / n_steps
+#             humanoid.base_rot = start_yaw + yaw_diff * frac
+#             move_pos = humanoid.base_pos
+#             move_quat = quat_from_angle_axis(humanoid.base_rot, np.array([0, 1, 0]))
 
-            controller.calculate_walk_pose(seg_vec)
-            new_pose = controller.get_pose()
-            new_joints = new_pose[:-16]
-            new_pos_transform_base = new_pose[-16:]
-            new_pos_transform_offset = new_pose[-32:-16]
+#             controller.calculate_walk_pose(seg_vec)
+#             new_pose = controller.get_pose()
+#             new_joints = new_pose[:-16]
+#             new_pos_transform_base = new_pose[-16:]
+#             new_pos_transform_offset = new_pose[-32:-16]
 
-            if np.array(new_pos_transform_offset).sum() != 0:
-                vecs_base = [mn.Vector4(new_pos_transform_base[i * 4 : (i + 1) * 4]) for i in range(4)]
-                vecs_offset = [mn.Vector4(new_pos_transform_offset[i * 4 : (i + 1) * 4]) for i in range(4)]
-                humanoid.set_joint_transform(
-                    new_joints, mn.Matrix4(*vecs_offset), mn.Matrix4(*vecs_base)
-                )
-                humanoid.base_pos = move_pos
+#             if np.array(new_pos_transform_offset).sum() != 0:
+#                 vecs_base = [mn.Vector4(new_pos_transform_base[i * 4 : (i + 1) * 4]) for i in range(4)]
+#                 vecs_offset = [mn.Vector4(new_pos_transform_offset[i * 4 : (i + 1) * 4]) for i in range(4)]
+#                 humanoid.set_joint_transform(
+#                     new_joints, mn.Matrix4(*vecs_offset), mn.Matrix4(*vecs_base)
+#                 )
+#                 humanoid.base_pos = move_pos
 
-            sim.step_physics(1.0 / fps)
+#             sim.step_physics(1.0 / fps)
 
 
 def walk_along_path_multi(
@@ -221,9 +244,7 @@ def walk_along_path_multi(
     human_path,
     fps=10,
     forward_speed=0.7,
-    interfering_humanoids=None,
-    interfering_controllers=None,
-    pathfinder=None
+    interfering_humanoids=None,  # 只保留这个
 ):
     output = {"obs": [], "follow_paths": []}
     height_bias = 0
@@ -264,20 +285,23 @@ def walk_along_path_multi(
         n_steps = int(np.ceil(seg_len / step_dist))
 
         # --- 插入干扰人形横穿 ---
-        if interfering_humanoids and interfering_controllers:
-            for i in range(len(interfering_humanoids)):
-                inter_path = generate_interfering_path(start_pos, goal_pos, sim.pathfinder)
-                if len(inter_path) >= 2:
-                    walk_along_interfering_path(
-                        interfering_humanoids[i],
-                        interfering_controllers[i],
-                        inter_path,
-                        sim,
-                        fps=fps,
-                        forward_speed=0.5,
-                        height=humanoid.base_pos.y,
-                    )
-                
+        # if interfering_humanoids and interfering_controllers:
+        #     for i in range(len(interfering_humanoids)):
+        #         inter_path = generate_interfering_path(start_pos, goal_pos, sim.pathfinder)
+        #         if len(inter_path) >= 2:
+        #             walk_along_interfering_path(
+        #                 interfering_humanoids[i],
+        #                 interfering_controllers[i],
+        #                 inter_path,
+        #                 sim,
+        #                 fps=fps,
+        #                 forward_speed=0.5,
+        #                 height=humanoid.base_pos.y,
+        #             )
+        # --- 静态放置干扰人形 ---
+        if interfering_humanoids:
+            interfering_humanoids.place_near_goal(goal_pos, radius=2.0)
+        
 
         for step in range(n_steps):
             humanoid.base_pos += direction * step_dist
@@ -624,7 +648,8 @@ if __name__ == "__main__":
         # human = rigid_mgr.add_object_by_template_id(humanoid_template_ids[0], attachment_node=agent_node)
         # human.motion_type = habitat_sim.physics.MotionType.KINEMATIC
         humanoid, controller = load_humanoid(simulator)
-        interfering_humanoids, interfering_controllers = load_interfering_humanoids(simulator, num=2)
+        # interfering_humanoids, interfering_controllers = load_interfering_humanoids(simulator, num=2)
+        interfering_humanoids = InterferingHumanoid(simulator, base_pos=mn.Vector3(0, 0.2, 0), num=2)
 
         # # 起点对齐
         # humanoid.base_pos = custom_path[0][0]
@@ -726,10 +751,14 @@ if __name__ == "__main__":
             # except Exception as e:   
             #     print(f"Error !!!!!!!: {e}")
             #     continue
+            
+            # output_data = walk_along_path_multi(
+            # all_index, simulator, humanoid, controller, new_path, fps=10,
+            # interfering_humanoids=interfering_humanoids,
+            # interfering_controllers=interfering_controllers,
+            # pathfinder=simulator.pathfinder)
+            
             output_data = walk_along_path_multi(
             all_index, simulator, humanoid, controller, new_path, fps=10,
-            interfering_humanoids=interfering_humanoids,
-            interfering_controllers=interfering_controllers,
-            pathfinder=simulator.pathfinder)
-
+            interfering_humanoids=interfering_humanoids)
             print("done")
