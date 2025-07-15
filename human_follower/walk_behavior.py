@@ -67,6 +67,16 @@ def simulate(sim, dt, get_observations=False):
             observations.append(sim.get_sensor_observations())
     return observations
 
+def clip_by_distance2target(path, distance, target_pos=None):
+    if target_pos is None:
+        target_pos = np.array(path[-1][0]) 
+     # 获取目标点的位置
+    clipped_path = [
+        pos for pos, _, _ in path
+        if np.linalg.norm(np.array(pos) - target_pos) > distance #wzj
+    ]
+    return clipped_path
+
 
 # def get_path_with_time(raw_path, time_step = 0.1, speed = 0.5):
 #     #raw path : postion, quat, yaw
@@ -244,57 +254,6 @@ def generate_interfere_sample_from_target_path(follow_path, pathfinder, radius=1
                     break
 
     return interfere_path
-# def generate_interfere_sample_from_target_path(follow_path,pathfinder, radius=1.0):
-#     """
-#     根据目标人的轨迹生成干扰人的扰动路径
-#     Args:
-#         target_path: 原始路径 [(pos, quat, yaw)]
-#         agent: AgentHumanoid 实例（用于初始位置）
-#         time_step: 时间分辨率
-#         speed: 插值速度
-#         radius: 生成扰动点的偏移半径
-
-#     Returns:
-#         List of (pos, yaw) 干扰人路径
-#     """
-#     # dense_path = get_path_with_time(follow_path, time_step, speed)
-
-#     interfere_path = []
-#     sample_distance = 0
-#     distance = 0
-#     start_pos = follow_path[0][0]
-#     threshold= 0.5
-
-#     for pos, quat, yaw in follow_path:
-#         dis_diff = calculate_euclidean_distance([start_pos.x, start_pos.y,start_pos.z],[pos.x, pos.y,pos.z])
-#         sample_distance += dis_diff
-#         distance += dis_diff
-#         start_pos = pos
-#         if sample_distance > threshold:
-#             sample_distance = 0
-#             # 在主路径每个点附近生成一个扰动点
-#             weight_radius = math.log(distance+1)*radius
-#             count = 0
-#             while count<10:
-#                 offset = mn.Vector3(
-#                     random.uniform(-weight_radius, weight_radius),
-#                     0,
-#                     random.uniform(-weight_radius, weight_radius)
-#                 )
-#                 new_pos = pos + offset
-#                 real_coords = np.array([
-#                     new_pos.x,
-#                     new_pos.y,  # 使用当前采样点的高度
-#                     new_pos.z
-#                 ])
-#                 if pathfinder.is_navigable(real_coords):
-#                     interfere_path.append(new_pos)
-#                     break
-            
-
-    
-#     return interfere_path
-
 
 def generate_interfer_path(interfering_humanoids, human_path, time_step=1/10, speed=0.7, radius=1.5):
     """
@@ -338,6 +297,8 @@ def walk_along_path_multi(
     follow_state.position = human_path[0][0]
     follow_state.rotation = to_quat(human_path[0][1])
     sim.agents[0].set_state(follow_state)
+
+    follow_timestep = 0
 
     move_dis = 0
     sample_list = [random.uniform(2, 2.5), random.uniform(3, 3.5)]
@@ -393,22 +354,40 @@ def walk_along_path_multi(
                 move_dis = 0
                 record_range = random.uniform(3, 5)
                 sample_list = []
-                new_path = generate_path(shortest_path.points, sim.pathfinder, filt_distance=keep_distance, visualize=False)
-                for j in range(len(new_path)):
-                    follow_state.position = new_path[j][0]
-                    follow_state.rotation = to_quat(new_path[j][1])
-                    follow_yaw = new_path[j][2]
+                # new_path = generate_path(shortest_path.points, sim.pathfinder, filt_distance=keep_distance, visualize=False)
+                # for j in range(len(new_path)):
+                #     follow_state.position = new_path[j][0]
+                #     follow_state.rotation = to_quat(new_path[j][1])
+                #     follow_yaw = new_path[j][2]
+                #     sim.agents[0].set_state(follow_state)
+                #     obs = sim.get_sensor_observations(0)
+                #     observations.append(obs.copy())
+                #     follow_data = {
+                #         "obs_idx": len(observations) - 1,
+                #         "follow_state": new_path[j],
+                #         "human_state": human_path[time_step],
+                #         "path": new_path[j:],
+                #         "type": 0,
+                #     }
+                #     output["follow_paths"].append(follow_data)
+                
+                cur_follow_timestep = follow_timestep
+                for t in range(cur_follow_timestep, time_step):
+                    follow_state.position = human_path[t][0]
+                    follow_state.rotation = to_quat(human_path[t][1])
+                    follow_yaw = human_path[t][2]
                     sim.agents[0].set_state(follow_state)
                     obs = sim.get_sensor_observations(0)
                     observations.append(obs.copy())
                     follow_data = {
                         "obs_idx": len(observations) - 1,
-                        "follow_state": new_path[j],
+                        "follow_state": human_path[follow_timestep],
                         "human_state": human_path[time_step],
-                        "path": new_path[j:],
+                        "path": clip_by_distance2target(human_path[follow_timestep:time_step], keep_distance),
                         "type": 0,
                     }
                     output["follow_paths"].append(follow_data)
+                    follow_timestep+=1
             else:
                 observations.append(sim.get_sensor_observations(0).copy())
         else:
@@ -418,16 +397,23 @@ def walk_along_path_multi(
             if len(sample_list) > 0 and move_dis > sample_list[0]:
                 if sim.pathfinder.find_path(shortest_path):
                     del sample_list[0]
-                    new_path = generate_path(shortest_path.points, sim.pathfinder, filt_distance=keep_distance, visualize=False)
+                    # new_path = generate_path(shortest_path.points, sim.pathfinder, filt_distance=keep_distance, visualize=False)
+                    # follow_data = {
+                    #     "obs_idx": len(observations) - 1,
+                    #     "follow_state": (follow_state.position, follow_state.rotation, follow_yaw),
+                    #     "human_state": human_path[time_step],
+                    #     "path": new_path,
+                    #     "type": 1,
+                    # }
+                    # output["follow_paths"].append(follow_data)
                     follow_data = {
                         "obs_idx": len(observations) - 1,
-                        "follow_state": (follow_state.position, follow_state.rotation, follow_yaw),
+                        "follow_state": human_path[follow_timestep],
                         "human_state": human_path[time_step],
-                        "path": new_path,
-                        "type": 1,
+                        "path": clip_by_distance2target(human_path[follow_timestep:time_step], keep_distance),
+                        "type": 0,
                     }
                     output["follow_paths"].append(follow_data)
-
     output["obs"] = observations
     if all_index < 20:
         os.makedirs("results2", exist_ok=True)
