@@ -19,7 +19,7 @@ from human_follower.save_data import to_quat
 from habitat_for_sim.agent.path_generator import generate_path
 from habitat_for_sim.utils.frontier_exploration import FrontierExploration
 from habitat_sim.utils import viz_utils as vut
-
+from habitat_for_sim.utils.goat import calculate_euclidean_distance
 def to_vec3(v) -> mn.Vector3:
     """接受 magnum.Vector3 或 list/tuple/np.ndarray"""
     if isinstance(v, mn.Vector3):
@@ -67,6 +67,253 @@ def simulate(sim, dt, get_observations=False):
             observations.append(sim.get_sensor_observations())
     return observations
 
+
+# def get_path_with_time(raw_path, time_step = 0.1, speed = 0.5):
+#     #raw path : postion, quat, yaw
+def slerp_quaternion(q1: mn.Quaternion, q2: mn.Quaternion, t: float) -> mn.Quaternion:
+    """
+    对两个 Magnum 四元数执行球面线性插值（SLERP）
+    保证数值稳定性，避免 NaN
+    """
+    q1 = q1.normalized()
+    q2 = q2.normalized()
+
+    dot = mn.math.dot(q1.vector, q2.vector)
+
+    if dot < 0.0:
+        q2 = mn.Quaternion(-q2.vector)
+        dot = -dot
+
+    dot = np.clip(dot, -1.0, 1.0)
+
+    if dot > 0.9995:
+        # 太接近，使用线性插值并归一化
+        interp = (q1.vector * (1 - t) + q2.vector * t).normalized()
+        return mn.Quaternion(interp)
+
+    theta_0 = math.acos(dot)
+    sin_theta = math.sin(theta_0)
+
+    w1 = math.sin((1 - t) * theta_0) / sin_theta
+    w2 = math.sin(t * theta_0) / sin_theta
+
+    interp_vector = q1.vector * w1 + q2.vector * w2
+    return mn.Quaternion(interp_vector.normalized())
+
+def get_path_with_time(raw_path, time_step=0.1, speed=0.5):
+    """
+    对原始路径按速度插值，生成细化的 (position, quat, yaw) 路径
+
+    Args:
+        raw_path: List of (position: mn.Vector3, quat: mn.Quaternion, yaw: float) tuples
+        time_step: float, 插值时间间隔（单位：秒）
+        speed: float, 行进速度（单位：米/秒）
+
+    Returns:
+        new_path: List of (position: mn.Vector3, quat: mn.Quaternion, yaw: float) 插值后的路径
+    """
+    new_path = []
+    if len(raw_path) < 2:
+        return new_path
+
+    step_dist = speed * time_step
+
+    for i in range(len(raw_path) - 1):
+        start_pos, start_quat, start_yaw = raw_path[i]
+        end_pos, end_quat, end_yaw = raw_path[i + 1]
+
+        seg_vec = end_pos - start_pos
+        seg_len = seg_vec.length()
+        
+        if seg_len < 1e-4:
+            continue
+
+        direction = seg_vec.normalized()
+        yaw_diff = shortest_angle_diff(start_yaw, end_yaw)
+
+        n_steps = int(np.ceil(seg_len / step_dist))
+        for step in range(n_steps):
+            frac = (step * step_dist) / seg_len
+
+            interp_pos = start_pos + direction * (frac * seg_len)
+            interp_yaw = start_yaw + yaw_diff * frac
+            interp_quat = slerp_quaternion(start_quat, end_quat, frac)
+
+            new_path.append((interp_pos, interp_quat, interp_yaw))
+
+    # 确保最后一个点包含在内
+    last_pos, last_quat, last_yaw = raw_path[-1]
+    new_path.append((last_pos, last_quat, last_yaw))
+
+    return new_path
+
+
+def generate_interfere_path_from_target_path(follow_path, agent, time_step=0.1, speed=0.5, radius=1.0):
+    """
+    根据目标人的轨迹生成干扰人的扰动路径
+    Args:
+        target_path: 原始路径 [(pos, quat, yaw)]
+        agent: AgentHumanoid 实例（用于初始位置）
+        time_step: 时间分辨率
+        speed: 插值速度
+        radius: 生成扰动点的偏移半径
+
+    Returns:
+        List of (pos, yaw) 干扰人路径
+    """
+    # dense_path = get_path_with_time(follow_path, time_step, speed)
+
+    interfere_path = []
+    distance = 0
+    start_pos = follow_path[0][0]
+    threshold= 0.5
+    for pos, quat, yaw in follow_path:
+        distance += calculate_euclidean_distance([start_pos.x, start_pos.y,start_pos.z],[pos.x, pos.y,pos.z])
+        start_pos = pos
+        if distance > threshold:
+            distance = 0
+            # 在主路径每个点附近生成一个扰动点
+            offset = mn.Vector3(
+                random.uniform(-radius, radius),
+                0,
+                random.uniform(-radius, radius)
+            )
+            new_pos = pos + offset
+            interfere_path.append((new_pos, quat, yaw))
+
+    dense_path = get_path_with_time(interfere_path, time_step, speed)
+    return dense_path
+
+def generate_interfere_sample_from_target_path(follow_path, pathfinder, radius=1.0):
+    """
+    沿主路径采样点生成干扰人轨迹，每个点在正前方向一定角度范围内偏移
+    """
+    interfere_path = []
+    sample_distance = 0
+    total_distance = 0
+    threshold = 0.5
+    start_pos = follow_path[0][0]
+    circle_random = random.choice([True, False])
+    for i in range(1, len(follow_path)):
+        pos, _, yaw = follow_path[i]
+        dis_diff = calculate_euclidean_distance(
+            [start_pos.x, start_pos.y, start_pos.z],
+            [pos.x, pos.y, pos.z]
+        )
+        sample_distance += dis_diff
+        total_distance += dis_diff
+        start_pos = pos
+
+        if sample_distance < threshold:
+            continue
+        sample_distance = 0
+
+        # 增大随机幅度
+        weight_radius = math.log(total_distance + 1) * radius
+
+        
+        if circle_random:
+            for _ in range(10):
+                offset = mn.Vector3(
+                    random.uniform(-weight_radius, weight_radius),
+                    0,
+                    random.uniform(-weight_radius, weight_radius)
+                )
+                new_pos = pos + offset
+                real_coords = np.array([new_pos.x, new_pos.y, new_pos.z])
+                if pathfinder.is_navigable(real_coords):
+                    interfere_path.append(new_pos)
+                    break
+        else:
+            # 方向向量（从 i-1 到 i）
+            prev_pos = follow_path[i - 1][0]
+            forward_vec = (pos - prev_pos).normalized()
+
+            # 生成前方 ±60° 扇形内随机扰动向量
+            max_angle = math.radians(60)
+            for _ in range(10):
+                angle = random.uniform(-max_angle, max_angle)
+                rot_mat = mn.Matrix4.rotation_y(mn.Rad(angle))
+                new_dir = rot_mat.transform_vector(forward_vec)
+                offset = new_dir * random.uniform(0.1, weight_radius)
+
+                new_pos = pos + offset
+                real_coords = np.array([new_pos.x, new_pos.y, new_pos.z])
+                if pathfinder.is_navigable(real_coords):
+                    interfere_path.append(new_pos)
+                    break
+
+    return interfere_path
+# def generate_interfere_sample_from_target_path(follow_path,pathfinder, radius=1.0):
+#     """
+#     根据目标人的轨迹生成干扰人的扰动路径
+#     Args:
+#         target_path: 原始路径 [(pos, quat, yaw)]
+#         agent: AgentHumanoid 实例（用于初始位置）
+#         time_step: 时间分辨率
+#         speed: 插值速度
+#         radius: 生成扰动点的偏移半径
+
+#     Returns:
+#         List of (pos, yaw) 干扰人路径
+#     """
+#     # dense_path = get_path_with_time(follow_path, time_step, speed)
+
+#     interfere_path = []
+#     sample_distance = 0
+#     distance = 0
+#     start_pos = follow_path[0][0]
+#     threshold= 0.5
+
+#     for pos, quat, yaw in follow_path:
+#         dis_diff = calculate_euclidean_distance([start_pos.x, start_pos.y,start_pos.z],[pos.x, pos.y,pos.z])
+#         sample_distance += dis_diff
+#         distance += dis_diff
+#         start_pos = pos
+#         if sample_distance > threshold:
+#             sample_distance = 0
+#             # 在主路径每个点附近生成一个扰动点
+#             weight_radius = math.log(distance+1)*radius
+#             count = 0
+#             while count<10:
+#                 offset = mn.Vector3(
+#                     random.uniform(-weight_radius, weight_radius),
+#                     0,
+#                     random.uniform(-weight_radius, weight_radius)
+#                 )
+#                 new_pos = pos + offset
+#                 real_coords = np.array([
+#                     new_pos.x,
+#                     new_pos.y,  # 使用当前采样点的高度
+#                     new_pos.z
+#                 ])
+#                 if pathfinder.is_navigable(real_coords):
+#                     interfere_path.append(new_pos)
+#                     break
+            
+
+    
+#     return interfere_path
+
+
+def generate_interfer_path(interfering_humanoids, human_path, time_step=1/10, speed=0.7, radius=1.5):
+    """
+    为所有干扰人生成扰动轨迹，并初始化路径状态
+
+    Args:
+        interfering_humanoids (list): AgentHumanoid 实例列表
+        human_path (list): 目标人的轨迹 [(pos, quat, yaw)]
+        time_step (float): 插值时间步长
+        speed (float): 干扰人移动速度
+        radius (float): 偏移扰动半径
+    """
+    for interferer in interfering_humanoids:
+        path = generate_interfere_path_from_target_path(
+            human_path, interferer,
+            time_step=time_step, speed=speed, radius=radius
+        )
+        interferer.reset_path(path)
+
 def walk_along_path_multi(
     all_index,
     sim,
@@ -77,18 +324,11 @@ def walk_along_path_multi(
     interfering_humanoids=None,
 ):
     output = {"obs": [], "follow_paths": []}
-    height_bias = 0
+    
     keep_distance = 0.7
 
-    # 修正高度偏移
-    for i in range(len(human_path)):
-        pos, quat, yaw = human_path[i]
-        new_pos = mn.Vector3(pos.x, pos.y - height_bias, pos.z)
-        human_path[i] = (new_pos, quat, yaw)
 
     observations = []
-    humanoid_agent.humanoid.base_pos = human_path[0][0]
-    humanoid_agent.humanoid.base_rot = human_path[0][2]
     humanoid_agent.step_directly(
         target_pos=human_path[0][0],
         target_yaw=human_path[0][2],
@@ -103,10 +343,12 @@ def walk_along_path_multi(
     sample_list = [random.uniform(2, 2.5), random.uniform(3, 3.5)]
     record_range = random.uniform(3, 5)
     
-    for k in range(1, len(human_path)):
-        goal_pos, goal_quat, goal_yaw = human_path[k]
+    
+    for time_step in range(1, len(human_path)):
+        goal_pos, goal_quat, goal_yaw = human_path[time_step]
 
-        start_pos, start_yaw, quat = humanoid_agent.get_pose()
+        # 获取 humanoid 当前状态
+        start_pos, start_yaw, _ = humanoid_agent.get_pose()
 
         seg_vec = goal_pos - start_pos
         seg_len = seg_vec.length()
@@ -114,31 +356,33 @@ def walk_along_path_multi(
         if seg_len < 1e-4:
             continue
 
-        yaw_diff = shortest_angle_diff(start_yaw, goal_yaw)
         direction = seg_vec.normalized()
-        step_dist = forward_speed / fps
-        n_steps = int(np.ceil(seg_len / step_dist))
 
-        for step in range(n_steps):
-            start_pos = start_pos + direction * step_dist
-            
-            frac = (step + 1) / n_steps
-            start_yaw = start_yaw + yaw_diff * frac
-            # ▶ 调用 step_to 控制主行人移动
-            humanoid_agent.step_with_controller(
-                target_pos=goal_pos,
-                target_yaw=goal_yaw,
-                direction=direction,
-            )
-
-            sim.step_physics(1.0 / fps)
+        # 调用控制器移动一步
+        humanoid_agent.step_with_controller(
+            target_pos=goal_pos,
+            target_yaw=goal_yaw,
+            direction=direction,
+        )
 
 
-
-        # ▶ 插入干扰人形位置
+        # ▶ 插入干扰人形位置 todo
         if interfering_humanoids:
+            # for interferer in interfering_humanoids:
+            #     interferer.place_near_goal(goal_pos, radius=2.0)
+        
             for interferer in interfering_humanoids:
-                interferer.place_near_goal(goal_pos, radius=2.0)
+                if hasattr(interferer, "interfere_path") and time_step < len(interferer.interfere_path):
+                    pos, quat,yaw = interferer.interfere_path[time_step]
+                    if time_step>0:
+                        interferer_direction = (interferer.interfere_path[time_step][0] - interferer.interfere_path[time_step-1][0]).normalized()
+                    else:
+                        interferer_direction = direction
+                    interferer.step_with_controller(pos, yaw, interferer_direction)
+                    interferer.time_step += 1
+
+        # 更新物理引擎
+        sim.step_physics(1.0 / fps)
 
         # ▶ 记录轨迹与观察
         shortest_path = habitat_sim.ShortestPath()
@@ -150,18 +394,18 @@ def walk_along_path_multi(
                 record_range = random.uniform(3, 5)
                 sample_list = []
                 new_path = generate_path(shortest_path.points, sim.pathfinder, filt_distance=keep_distance, visualize=False)
-                for i in range(len(new_path)):
-                    follow_state.position = new_path[i][0]
-                    follow_state.rotation = to_quat(new_path[i][1])
-                    follow_yaw = new_path[i][2]
+                for j in range(len(new_path)):
+                    follow_state.position = new_path[j][0]
+                    follow_state.rotation = to_quat(new_path[j][1])
+                    follow_yaw = new_path[j][2]
                     sim.agents[0].set_state(follow_state)
                     obs = sim.get_sensor_observations(0)
                     observations.append(obs.copy())
                     follow_data = {
                         "obs_idx": len(observations) - 1,
-                        "follow_state": new_path[i],
-                        "human_state": human_path[k],
-                        "path": new_path[i:],
+                        "follow_state": new_path[j],
+                        "human_state": human_path[time_step],
+                        "path": new_path[j:],
                         "type": 0,
                     }
                     output["follow_paths"].append(follow_data)
@@ -178,7 +422,7 @@ def walk_along_path_multi(
                     follow_data = {
                         "obs_idx": len(observations) - 1,
                         "follow_state": (follow_state.position, follow_state.rotation, follow_yaw),
-                        "human_state": human_path[k],
+                        "human_state": human_path[time_step],
                         "path": new_path,
                         "type": 1,
                     }

@@ -443,16 +443,13 @@ def generate_path(path, pathfinder, window_size=10, height_threshold=0.1, max_ro
 
         # 插值生成中间点
         direction = end - start
-        if np.linalg.norm(direction) < 1e-1:
-            path[i + 1] = path[i]
+        direction = [direction[0],0,direction[2]]
+        if np.linalg.norm(direction) < 1e-2:
             continue
         
         orientation = direction / np.linalg.norm(direction) 
         quaternion = direction_to_combined_quaternion(orientation)
         
-        if np.linalg.norm(direction) < 1e-1:
-            path[i + 1] = path[i]
-            continue
 
         interpolated_points = [
             start + (end - start) * t / (num_points_between + 1)

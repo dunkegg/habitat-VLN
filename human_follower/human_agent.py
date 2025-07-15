@@ -23,25 +23,40 @@ import imageio
 import random
 from omegaconf import DictConfig
 
+def get_humanoid_id(id_exception=None):
+    while True:
+        gender =  random.choice(['female','male'])
+        if gender == 'female':
+            num = random.randint(0, 34)
+        else:
+            num = random.randint(0, 64)
+        humanoid_name = gender+'_'+f'{num}'
+        if id_exception is None or humanoid_name!=id_exception:
+            break
+    return humanoid_name
 
 class AgentHumanoid:
-    def __init__(self, sim, base_pos: mn.Vector3, motion_path=None, is_target=False):
+    def __init__(self, sim, base_pos: mn.Vector3, name ,motion_path=None, is_target=False):
         self.sim = sim
         self.is_target = is_target
-        self.humanoid, self.controller = self._load_humanoid(sim, motion_path)
+        self.humanoid, self.controller = self._load_humanoid(sim,name, motion_path)
         self.humanoid.base_pos = base_pos
-        self.pos = base_pos
-        self.yaw = 0.0
-        self.seg_vec = None
-        self.quat = None
+        # self.pos = base_pos
+        # self.yaw = 0.0
+        # self.seg_vec = None
+        # self.quat = None
+        self.time_step = 0
+        self.name = name
 
-    def reset(self):
+    def reset(self, name):
+        self.time_step = 0
+        self.humanoid, self.controller = self._load_humanoid(self.sim, name, None)
         return
 
-    def _load_humanoid(self, sim, motion_path=None):
-        names = ["female_0", "female_1", "female_2", "female_3", "male_0", "male_1", "male_2", "male_3"]
-        humanoid_name = random.choice(names)
-        data_root = "human_follower/habitat_humanoids"
+    def _load_humanoid(self, sim, humanoid_name,motion_path=None):
+
+        # data_root = "human_follower/habitat_humanoids"
+        data_root = "human_follower/humanoid_data"
         urdf_path = f"{data_root}/{humanoid_name}/{humanoid_name}.urdf"
         motion_pkl = motion_path or f"{data_root}/{humanoid_name}/{humanoid_name}_motion_data_smplx.pkl"
         agent_cfg = DictConfig({
@@ -67,6 +82,10 @@ class AgentHumanoid:
         self.humanoid.base_pos = pos
         self.humanoid.base_rot = self.yaw
 
+    def reset_path(self,path):
+        self.interfere_path = path
+        self.time_step = 0
+
     def get_pose(self):
         position = self.humanoid.base_pos
         yaw = self.humanoid.base_rot
@@ -83,6 +102,8 @@ class AgentHumanoid:
         direction = direction.normalized()
 
         self.humanoid.base_pos = target_pos
+        # 计算方向向量的 yaw（绕 y 轴的旋转角）
+        # target_yaw = math.atan2(-direction.x, -direction.z)  # habitat 中朝 -Z 为前方
         self.humanoid.base_rot = target_yaw
 
         self.controller.calculate_walk_pose(direction)
