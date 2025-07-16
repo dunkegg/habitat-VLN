@@ -436,7 +436,7 @@ def generate_path(path, pathfinder, window_size=10, height_threshold=0.1, max_ro
     agent_height = 1.5
 
     # Step 1: 插值路径
-    print(f'Path length: {len(path)}')
+    # print(f'Path length: {len(path)}')
     for i in range(len(path) - 1):
         start = np.array(path[i])
         end = np.array(path[i + 1])

@@ -69,6 +69,9 @@ def save_output_to_h5(output: dict, h5_path="output.h5"):
             g = grp.create_group(f"{k:06d}")
             g.create_dataset("obs_idx", data=np.int32(fp["obs_idx"]))
             g.create_dataset("type", data=np.int32(fp["type"]))
+            dt = h5py.string_dtype(encoding='utf-8')
+            g.create_dataset("desc", data=fp["desc"], dtype=dt)
+  
             # follow_state
             fpos, fquat, fyaw = fp["follow_state"]
             g.create_dataset("follow_pos", data=to_vec3(fpos))

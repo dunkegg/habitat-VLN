@@ -23,7 +23,7 @@ import imageio
 import random
 from omegaconf import DictConfig
 
-def get_humanoid_id(id_exception=None):
+def get_humanoid_id(id_dict, name_exception=None):
     while True:
         gender =  random.choice(['female','male'])
         if gender == 'female':
@@ -31,36 +31,75 @@ def get_humanoid_id(id_exception=None):
         else:
             num = random.randint(0, 64)
         humanoid_name = gender+'_'+f'{num}'
-        if id_exception is None or humanoid_name!=id_exception:
+
+        if name_exception is None:
             break
+        else:
+            if humanoid_name != name_exception and id_dict[humanoid_name]["tag"] != id_dict[name_exception]["tag"]:
+                break
+
     return humanoid_name
 
 class AgentHumanoid:
-    def __init__(self, sim, base_pos: mn.Vector3, name ,motion_path=None, is_target=False):
+    def __init__(self, sim, base_pos, base_yaw, name, description, is_target=False):
         self.sim = sim
         self.is_target = is_target
         self.humanoid = None
         self.controller = None
-        self.remove_from_scene()
-        self.humanoid, self.controller = self._load_humanoid(sim,name, motion_path)
-        self.humanoid.base_pos = base_pos
-        # self.pos = base_pos
-        # self.yaw = 0.0
-        # self.seg_vec = None
-        # self.quat = None
         self.time_step = 0
         self.name = name
+        self.tag  = None
+        self.desc = None
+        self.reset(base_pos,base_yaw,name,description)
 
-    def reset(self, name):
+    def reset(self, base_pos, base_yaw ,name, description):
         self.time_step = 0
-        self.humanoid, self.controller = self._load_humanoid(self.sim, name, None)
-        return
-    def remove_from_scene(self):
-        if hasattr(self.humanoid, "sim_obj") and self.humanoid.sim_obj is not None:
-            self.sim.remove_articulated_object(self.humanoid.sim_obj.object_id)
-            self.humanoid.sim_obj = None  # 防止重复删除
-    def _load_humanoid(self, sim, humanoid_name,motion_path=None):
+        
         self.remove_from_scene()
+        self.humanoid, self.controller = self._load_humanoid(self.sim, name, None)
+        self.humanoid.base_pos = base_pos
+        self.humanoid.base_rot = base_yaw
+        self.desc = description
+        return
+    
+    def get_desc(self):
+        return self.desc
+
+    def get_tag(self,id_dict):
+        tag = id_dict[self.name]["tag"]
+        self.tag = tag
+
+    def remove_from_scene(self):
+        """
+        从 Habitat 仿真场景中移除人形对象，并清理相关引用。
+        """
+        try:
+            if hasattr(self, 'humanoid') and self.humanoid is not None:
+                if hasattr(self.humanoid, 'sim_obj') and self.humanoid.sim_obj is not None:
+                    if self.sim is not None:
+                        # 检查当前场景中的对象 ID
+                        current_object_ids = self.sim.get_existing_object_ids()
+                        print(f"场景中的对象 ID: {current_object_ids}")
+                        if self.humanoid.sim_obj.object_id in current_object_ids:
+                            # 尝试移除人形对象
+                            self.sim.remove_articulated_object(self.humanoid.sim_obj.object_id)
+                            print(f"成功移除人形对象，ID: {self.humanoid.sim_obj.object_id}")
+                        else:
+                            print(f"错误：人形对象 ID {self.humanoid.sim_obj.object_id} 不在场景中")
+                    else:
+                        print("错误：仿真器 (self.sim) 未初始化")
+                    # 清理 sim_obj 引用
+                    self.humanoid.sim_obj = None
+                else:
+                    print("警告：人形对象没有有效的 sim_obj")
+                # 清理 humanoid 引用（可选）
+                self.humanoid = None
+            else:
+                print("警告：没有可移除的人形对象")
+        except Exception as e:
+            print(f"移除人形对象时出错：{e}")
+
+    def _load_humanoid(self, sim, humanoid_name,motion_path=None):
         # data_root = "human_follower/habitat_humanoids"
         data_root = "human_follower/humanoid_data"
         urdf_path = f"{data_root}/{humanoid_name}/{humanoid_name}.urdf"
@@ -75,6 +114,7 @@ class AgentHumanoid:
         humanoid.update()
         controller = HumanoidRearrangeController(walk_pose_path=motion_pkl)
         controller.reset(humanoid.base_transformation)
+        print(f"load humanoid {humanoid_name}")
         return humanoid, controller
 
     def _random_offset_pos(self, goal_pos: mn.Vector3, radius=2.0):
@@ -127,3 +167,6 @@ class AgentHumanoid:
             self.humanoid.base_pos = target_pos  # 再次同步位置
 
         # self.sim.step_physics(1.0 / fps)
+
+
+

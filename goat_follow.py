@@ -63,11 +63,10 @@ if __name__ == "__main__":
     
     all_index = 0
     for file_name, content in data.items():
-        if all_index > 100:
+        if all_index > 10 and episodes_count > 50000:
             break
         
-        if episodes_count > 50000:
-            break
+
         print(f"Processing {file_name}:")
         structured_data,  filtered_episodes = process_episodes_and_goals(content)
         episodes = convert_to_scene_objects(structured_data, filtered_episodes)
@@ -132,44 +131,33 @@ if __name__ == "__main__":
         # names = ["female_0", "female_1", "female_2", "female_3", "male_0", "male_1", "male_2", "male_3"]
         # humanoid_name = random.choice(names)
 
-        humanoid_name = get_humanoid_id()
-        ###label
-        folders = [f"female_{i}" for i in range(35)] + [f"male_{i}" for i in range(65)]
+        with open("character_descriptions.json", "r") as f:
+            id_dict = json.load(f)
 
-        humanoid_name = folders[all_index]
+        # ###label
+        # folders = [f"female_{i}" for i in range(35)] + [f"male_{i}" for i in range(65)]
+        # humanoid_name = folders[all_index]
+
+        humanoid_name = get_humanoid_id(id_dict, name_exception=None) 
+        
         # 原主目标人
-        target_humanoid = AgentHumanoid(
-            simulator,
-            base_pos=mn.Vector3(0, 0.083, 0),
-            name = humanoid_name,
-            # motion_path="human_follower/habitat_humanoids/female_0/female_0_motion_data_smplx.pkl",
-            is_target=True
-        )
-
-        # # 干扰人可定义多个实例
-        # interferer_1 = AgentHumanoid(simulator, base_pos=mn.Vector3(0, 0.083, 0), name = get_humanoid_id(humanoid_name))
-        # interferer_2 = AgentHumanoid(simulator, base_pos=mn.Vector3(0, 0.083, 0), name = get_humanoid_id(humanoid_name))
-        # interferer_3 = AgentHumanoid(simulator, base_pos=mn.Vector3(0, 0.083, 0), name = get_humanoid_id(humanoid_name))
-        # max_humanoids=[interferer_1, interferer_2,interferer_3]
-
-
-        interfering_humanoids = []
-        for idx in range(random.randint(1, 3)):
-            break
+        description = id_dict[humanoid_name]["description"]
+        target_humanoid = AgentHumanoid(simulator,base_pos=mn.Vector3(0, 0.083, 0), base_yaw = 0,name = humanoid_name,description = description, is_target=True)
+        
+        all_interfering_humanoids = []
+        for idx in range(3):
+            # break
             # max_humanoids[idx].reset(name = get_humanoid_id(humanoid_name))
-            interferer = AgentHumanoid(simulator, base_pos=mn.Vector3(0, 0.083, 0), name = get_humanoid_id(humanoid_name))
-            interfering_humanoids.append(interferer)
-
-        # # 起点对齐
-        # humanoid.base_pos = custom_path[0][0]
-        # humanoid.base_rot = custom_path[0][1]
-
-
-
+            interferer_name = get_humanoid_id(id_dict, name_exception = humanoid_name)
+            interferer_description = id_dict[humanoid_name]["description"]
+            interferer = AgentHumanoid(simulator, base_pos=mn.Vector3(0, 0.083, 0), base_yaw = 0, name = interferer_name, description = interferer_description, is_target=False)
+            all_interfering_humanoids.append(interferer)
 
 
         print("begin")
         for episode_id, obj_data in enumerate(tqdm(episodes)):
+            if all_index > 10 and episodes_count > 50000:
+                break
 
 
             #print("obj_data:", obj_data)
@@ -245,7 +233,7 @@ if __name__ == "__main__":
 
          
             # 目标人移动
-            human_fps = 10
+            human_fps = 5
             human_speed = 0.7
             dense_path = get_path_with_time(new_path, time_step=1/human_fps, speed=human_speed)
             
@@ -275,24 +263,16 @@ if __name__ == "__main__":
 
             
             #
+            k = random.randint(1, 3) 
+            interfering_humanoids = random.sample(all_interfering_humanoids, k)
+            ##
             for interfering_humanoid in interfering_humanoids:
                 sample_path = generate_interfere_sample_from_target_path(dense_path,pathfinder, 1)
                 list_pos = [[point.x,point.y,point.z] for point in sample_path]
                 interfering_path = generate_path(list_pos, pathfinder, visualize=False)
                 interfering_path = get_path_with_time(interfering_path, time_step=1/human_fps, speed=0.9)
-                # todo
                 interfering_humanoid.reset_path(interfering_path)
                 
-            
-            # # 干扰人移动
-            # generate_interfer_path(
-            #     interfering_humanoids=interfering_humanoids,
-            #     human_path=dense_path,
-            #     # time_step=1/human_fps,
-            #     time_step=1/human_fps,
-            #     speed=0.9,  # 比主行人快
-            #     radius=0.5  # 可调扰动幅度
-            # )
 
             output_data = walk_along_path_multi(
                 all_index=all_index,
@@ -302,6 +282,8 @@ if __name__ == "__main__":
                 fps=10,
                 interfering_humanoids=interfering_humanoids
             )
+            save_output_to_h5(output_data, f"results/follow_hdf5/episode_{all_index}.hdf5")
+            episodes_count += len(output_data["follow_paths"])
             all_index+=1
-            print(f"Case {all_index}, {humanoid_name} Done")
+            print(f"Case {all_index}, {humanoid_name} Done, Already has {episodes_count} cases")
             
