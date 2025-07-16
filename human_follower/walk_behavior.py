@@ -292,11 +292,25 @@ def walk_along_path_multi(
         target_pos=human_path[0][0],
         target_yaw=human_path[0][2],
     )
+    sim.step_physics(1.0 / fps)
+
     follow_state = sim.agents[0].get_state()
+
+
+    # obs_quat = quat_from_angle_axis(human_path[5][2]+math.pi, np.array([0, 1, 0]))
+    # follow_state.position = human_path[5][0]
+    # follow_state.rotation = obs_quat
+    # sim.agents[0].set_state(follow_state)
+    # obs = sim.get_sensor_observations(0)
+    # observations.append(obs.copy())
+    # observations.append(obs.copy())
+
+
     follow_yaw = human_path[0][2]
     follow_state.position = human_path[0][0]
     follow_state.rotation = to_quat(human_path[0][1])
     sim.agents[0].set_state(follow_state)
+
 
     follow_timestep = 0
 
@@ -305,7 +319,7 @@ def walk_along_path_multi(
     record_range = random.uniform(3, 5)
     
     
-    for time_step in range(1, len(human_path)):
+    for time_step in range(2, len(human_path)):
         goal_pos, goal_quat, goal_yaw = human_path[time_step]
 
         # 获取 humanoid 当前状态
@@ -344,7 +358,7 @@ def walk_along_path_multi(
 
         # 更新物理引擎
         sim.step_physics(1.0 / fps)
-
+        observations.append(sim.get_sensor_observations(0).copy())
         # ▶ 记录轨迹与观察
         shortest_path = habitat_sim.ShortestPath()
         if move_dis > record_range:
@@ -354,6 +368,7 @@ def walk_along_path_multi(
                 move_dis = 0
                 record_range = random.uniform(3, 5)
                 sample_list = []
+
                 # new_path = generate_path(shortest_path.points, sim.pathfinder, filt_distance=keep_distance, visualize=False)
                 # for j in range(len(new_path)):
                 #     follow_state.position = new_path[j][0]
@@ -388,10 +403,9 @@ def walk_along_path_multi(
                     }
                     output["follow_paths"].append(follow_data)
                     follow_timestep+=1
-            else:
-                observations.append(sim.get_sensor_observations(0).copy())
+
         else:
-            observations.append(sim.get_sensor_observations(0).copy())
+            
             shortest_path.requested_start = follow_state.position
             shortest_path.requested_end = goal_pos
             if len(sample_list) > 0 and move_dis > sample_list[0]:
@@ -406,24 +420,25 @@ def walk_along_path_multi(
                     #     "type": 1,
                     # }
                     # output["follow_paths"].append(follow_data)
+                    
                     follow_data = {
                         "obs_idx": len(observations) - 1,
                         "follow_state": human_path[follow_timestep],
                         "human_state": human_path[time_step],
                         "path": clip_by_distance2target(human_path[follow_timestep:time_step], keep_distance),
-                        "type": 0,
+                        "type": 1,
                     }
                     output["follow_paths"].append(follow_data)
     output["obs"] = observations
-    if all_index < 20:
-        os.makedirs("results2", exist_ok=True)
-        vut.make_video(
-            observations,
-            "color_0_0",
-            "color",
-            f"results2/humanoid_wrapper_{all_index}",
-            open_vid=False,
-        )
+    
+    os.makedirs("results2", exist_ok=True)
+    vut.make_video(
+        observations,
+        "color_0_0",
+        "color",
+        f"results2/humanoid_wrapper_{all_index}",
+        open_vid=False,
+    )
     print("walk done")
     return output
 

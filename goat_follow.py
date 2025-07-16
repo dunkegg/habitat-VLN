@@ -63,7 +63,7 @@ if __name__ == "__main__":
     
     all_index = 0
     for file_name, content in data.items():
-        if all_index > 10:
+        if all_index > 100:
             break
         
         if episodes_count > 50000:
@@ -133,6 +133,10 @@ if __name__ == "__main__":
         # humanoid_name = random.choice(names)
 
         humanoid_name = get_humanoid_id()
+        ###label
+        folders = [f"female_{i}" for i in range(35)] + [f"male_{i}" for i in range(65)]
+
+        humanoid_name = folders[all_index]
         # 原主目标人
         target_humanoid = AgentHumanoid(
             simulator,
@@ -151,9 +155,11 @@ if __name__ == "__main__":
 
         interfering_humanoids = []
         for idx in range(random.randint(1, 3)):
+            break
             # max_humanoids[idx].reset(name = get_humanoid_id(humanoid_name))
             interferer = AgentHumanoid(simulator, base_pos=mn.Vector3(0, 0.083, 0), name = get_humanoid_id(humanoid_name))
             interfering_humanoids.append(interferer)
+
         # # 起点对齐
         # humanoid.base_pos = custom_path[0][0]
         # humanoid.base_rot = custom_path[0][1]
@@ -213,17 +219,17 @@ if __name__ == "__main__":
                     print("Skipping episode due to multi-floor path")
                     continue
                 
-                # 初始化探索类
-                if not cfg.shortest_path:
+                # # 初始化探索类
+                # if not cfg.shortest_path:
 
-                    num_frontiers = random.randint(1, 4)
-                    #print("original path:",path)
-                    explorer = FrontierExploration(simulator)
-                    explorer.explore_until_target(
-                                start_position = start_position,
-                                target_position = goal_position,
-                                num_frontiers = num_frontiers)
-                    path = explorer.trail
+                #     num_frontiers = random.randint(1, 4)
+                #     #print("original path:",path)
+                #     explorer = FrontierExploration(simulator)
+                #     explorer.explore_until_target(
+                #                 start_position = start_position,
+                #                 target_position = goal_position,
+                #                 num_frontiers = num_frontiers)
+                #     path = explorer.trail
                 #print("frontier_exploration path:", path)
                 
 
@@ -297,4 +303,5 @@ if __name__ == "__main__":
                 interfering_humanoids=interfering_humanoids
             )
             all_index+=1
-            print(f"Case {all_index} Done")
+            print(f"Case {all_index}, {humanoid_name} Done")
+            

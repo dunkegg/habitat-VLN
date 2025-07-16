@@ -1,0 +1,402 @@
+{
+  "female_0": {
+    "description": "A medium-build female with light to medium skin tone, wearing a red short-sleeve shirt and black pants",
+    "tag": "None"
+  },
+  "female_1": {
+    "description": "A slender female with medium skin tone, wearing a tight-fitting green and black top and pink leggings",
+    "tag": "None"
+  },
+  "female_2": {
+    "description": "A heavy-set female with dark skin tone, wearing a light beige short-sleeve top and dark pants",
+    "tag": "None"
+  },
+  "female_3": {
+    "description": "A medium-build female with medium skin tone, wearing a dark green long-sleeve top and matching green pants",
+    "tag": "None"
+  },
+  "female_4": {
+    "description": "A dark-skinned woman with a curvy build, wearing a tight dark top and matching dark pants.",
+    "tag": "None"
+  },
+  "female_5": {
+    "description": "A medium-build female with light skin tone, wearing a dark green hoodie and matching green pants.",
+    "tag": "None"
+  },
+  "female_6": {
+    "description": "A medium-build female with light skin tone, dressed in a full beige bodysuit.",
+    "tag": "None"
+  },
+  "female_7": {
+    "description": "A curvy female with medium skin tone, wearing a dark green top and matching green pants.",
+    "tag": "None"
+  },
+  "female_8": {
+    "description": "A curvy female with medium to dark skin tone, dressed in a long-sleeve black top and black pants.",
+    "tag": "None"
+  },
+  "female_9": {
+    "description": "A curvy female with light skin tone, wearing a red long-sleeve top and dark shorts.",
+    "tag": "None"
+  },
+  "female_10": {
+    "description": "A medium-build female with light skin tone, wearing a dark off-shoulder top and dark gray pants.",
+    "tag": "None"
+  },
+  "female_11": {
+    "description": "A curvy female with light skin tone, wearing a beige full-body outfit.",
+    "tag": "None"
+  },
+  "female_12": {
+    "description": "A curvy female with light to medium skin tone, wearing a green strapless top and dark pants.",
+    "tag": "None"
+  },
+  "female_13": {
+    "description": "A curvy female with light skin tone, wearing a black long-sleeve top and brown pants.",
+    "tag": "None"
+  },
+  "female_14": {
+    "description": "A medium-build female with medium skin tone, dressed in a fitted gray long-sleeve top and matching gray leggings.",
+    "tag": "None"
+  },
+  "female_15": {
+    "description": "A medium-build female with light to medium skin tone, wearing a long-sleeve dark red top and black pants.",
+    "tag": "None"
+  },
+  "female_16": {
+    "description": "A heavyset female with medium to dark skin tone, wearing a burgundy short-sleeve top and dark blue pants.",
+    "tag": "None"
+  },
+  "female_17": {
+    "description": "A medium-build female with light skin tone, wearing a beige and green long-sleeve top and dark green pants.",
+    "tag": "None"
+  },
+  "female_18": {
+    "description": "A medium-build female with medium skin tone, wearing a green and black long-sleeve top and dark pants.",
+    "tag": "None"
+  },
+  "female_19": {
+    "description": "A fit female with light to medium skin tone, wearing a sleeveless red and black top with matching short bottoms and long black boots.",
+    "tag": "None"
+  },
+  "female_20": {
+    "description": "A heavy-set female with medium to dark skin tone, wearing a dark long-sleeve top and matching dark pants.",
+    "tag": "None"
+  },
+  "female_21": {
+    "description": "A medium-build female with medium skin tone, wearing a dark short-sleeve top and fitted dark pants.",
+    "tag": "None"
+  },
+  "female_22": {
+    "description": "A curvy female with dark skin tone, wearing a tight black long-sleeve top with an open back and matching black pants.",
+    "tag": "None"
+  },
+  "female_23": {
+    "description": "A curvy female with light skin tone, wearing an off-shoulder greenish-blue top with decorative back details and matching pants.",
+    "tag": "None"
+  },
+  "female_24": {
+    "description": "A curvy female with medium to dark skin tone, wearing a brown patterned top and matching dark pants.",
+    "tag": "None"
+  },
+  "female_25": {
+    "description": "A curvy female with medium to dark skin tone, wearing a form-fitting red long-sleeve top and matching red pants.",
+    "tag": "None"
+  },
+  "female_26": {
+    "description": "A medium-build female with light skin tone, wearing a red off-shoulder crop top and dark fitted pants.",
+    "tag": "None"
+  },
+  "female_27": {
+    "description": "A curvy female with medium skin tone, wearing a fitted black long-sleeve top and matching black pants.",
+    "tag": "None"
+  },
+  "female_28": {
+    "description": "A slim female with light to medium skin tone, wearing a dark green long-sleeve top and matching green fitted pants.",
+    "tag": "None"
+  },
+  "female_29": {
+    "description": "A curvy female with medium to dark skin tone, wearing a black off-shoulder top with sheer sleeves and matching dark pants.",
+    "tag": "None"
+  },
+  "female_30": {
+    "description": "A curvy female with medium to dark skin tone, wearing a fitted black long-sleeve top and matching black pants.",
+    "tag": "None"
+  },
+  "female_31": {
+    "description": "A fit female with light to medium skin tone, wearing a dark short-sleeve top and dark fitted pants.",
+    "tag": "None"
+  },
+  "female_32": {
+    "description": "A medium-build female with medium skin tone, wearing a floral-patterned dark top with green sleeves and matching green pants.",
+    "tag": "None"
+  },
+  "female_33": {
+    "description": "A medium-build female with light to medium skin tone, wearing a grey long-sleeve top and dark fitted pants.",
+    "tag": "None"
+  },
+  "female_34": {
+    "description": "A curvy female with light skin tone, wearing a layered green and black top with red accents and tight black pants.",
+    "tag": "None"
+  },
+  "male_0": {
+    "description": "A fit male with medium skin tone, wearing a dark green tactical outfit with a brown utility belt and matching pants.",
+    "tag": "None"
+  },
+  "male_1": {
+    "description": "A stocky male with light to medium skin tone, wearing a short-sleeve grey top with a red waistband and dark pants.",
+    "tag": "None"
+  },
+  "male_2": {
+    "description": "A medium-build male with medium to dark skin tone, wearing a black long-sleeve shirt and matching black pants.",
+    "tag": "A"
+  },
+  "male_3": {
+    "description": "A slim male with dark skin tone, wearing a fitted black long-sleeve top and black pants.",
+    "tag": "A"
+  },
+  "male_4": {
+    "description": "A muscular male with dark skin tone, shirtless, wearing tan pants with a blue waistband.",
+    "tag": "None"
+  },
+  "male_5": {
+    "description": "A fit male with dark skin tone, wearing a dark long-sleeve top and matching dark pants.",
+    "tag": "A"
+  },
+  "male_6": {
+    "description": "A medium-build male with dark skin tone, wearing a red and grey long-sleeve top with yellow accents and matching grey pants with yellow patches.",
+    "tag": "None"
+  },
+  "male_7": {
+    "description": "A muscular male with dark skin tone, wearing a brown long-sleeve top and dark green shorts.",
+    "tag": "None"
+  },
+  "male_8": {
+    "description": "A medium-build male with light to medium skin tone, wearing a black long-sleeve top and matching black pants.",
+    "tag": "A"
+  },
+  "male_9": {
+    "description": "A slim male with medium skin tone, wearing a black long-sleeve top and matching black pants.",
+    "tag": "A"
+  },
+  "male_10": {
+    "description": "A muscular male with dark skin tone, wearing a tight black long-sleeve top and matching black pants.",
+    "tag": "A"
+  },
+  "male_11": {
+    "description": "A slim male with medium to dark skin tone, wearing a black long-sleeve top and matching black pants.",
+    "tag": "A"
+  },
+  "male_12": {
+    "description": "A medium-build male with light to medium skin tone, wearing a fitted dark olive long-sleeve top and matching pants.",
+    "tag": "None"
+  },
+  "male_13": {
+    "description": "A medium-build male with light skin tone, wearing a dark blue futuristic-style long-sleeve top and beige pants.",
+    "tag": "None"
+  },
+  "male_14": {
+    "description": "A medium-build male with dark skin tone, wearing a dark green long-sleeve top and black fitted pants.",
+    "tag": "None"
+  },
+  "male_15": {
+    "description": "A medium-build male with light skin tone, wearing a green and brown fantasy-style outfit with a belted tunic, fitted pants, and tall matching boots.",
+    "tag": "None"
+  },
+  "male_16": {
+    "description": "A muscular male with medium skin tone, wearing a tight green textured long-sleeve top and matching fitted green pants.",
+    "tag": "None"
+  },
+  "male_17": {
+    "description": "A fit male with light to medium skin tone, wearing a blue and red superhero-style bodysuit.",
+    "tag": "None"
+  },
+  "male_18": {
+    "description": "A muscular male with light to medium skin tone, wearing a red and gold armored superhero-style bodysuit.",
+    "tag": "None"
+  },
+  "male_19": {
+    "description": "A fit male with medium skin tone, wearing a dark blue and red superhero-style bodysuit with metallic details.",
+    "tag": "None"
+  },
+  "male_20": {
+    "description": "A slim male with dark skin tone, wearing a black long-sleeve shirt and matching black pants.",
+    "tag": "A"
+  },
+  "male_21": {
+    "description": "A medium-build male with light to medium skin tone, wearing a fitted black long-sleeve shirt and matching black pants.",
+    "tag": "A"
+  },
+  "male_22": {
+    "description": "A medium-build male with light skin tone, wearing a dark grey long-sleeve top and black pants.",
+    "tag": "A"
+  },
+  "male_23": {
+    "description": "A heavily muscular male with green skin, wearing only tight purple pants, resembling a superhero or fantasy character.",
+    "tag": "None"
+  },
+  "male_24": {
+    "description": "A fit male with light skin tone, wearing a red, white, and blue superhero-style suit with a star emblem on the back.",
+    "tag": "None"
+  },
+  "male_25": {
+    "description": "A slim male with light to medium skin tone, wearing a tight purple outfit with green belt and harness details, resembling a comic or superhero costume.",
+    "tag": "None"
+  },
+  "male_26": {
+    "description": "A stocky male with dark skin tone, wearing a tight red and gold superhero-style bodysuit resembling an armored suit.",
+    "tag": "None"
+  },
+  "male_27": {
+    "description": "A fit male with medium to dark skin tone, wearing a red and black superhero-style bodysuit with utility belt.",
+    "tag": "None"
+  },
+  "male_28": {
+    "description": "A medium-build male with light to medium skin tone, wearing a fitted black long-sleeve top and matching black pants.",
+    "tag": "None"
+  },
+  "male_29": {
+    "description": "A muscular male with dark skin tone, wearing a black and grey superhero-style suit with metallic textures",
+    "tag": "None"
+  },
+  "male_30": {
+    "description": "A muscular male with medium skin tone, wearing a brown armored top with shoulder guards and dark shorts",
+    "tag": "None"
+  },
+  "male_31": {
+    "description": "A stocky male with medium to dark skin tone, wearing a short-sleeve dark grey top and matching pants with a brown waistband or belt.",
+    "tag": "None"
+  },
+  "male_32": {
+    "description": "A medium-build male with light to medium skin tone, wearing a sleek black long-sleeve top and matching black pants.",
+    "tag": "A"
+  },
+  "male_33": {
+    "description": "A broad-shouldered male with dark skin tone, wearing a fitted black long-sleeve top and matching black pants.",
+    "tag": "A"
+  },
+  "male_34": {
+    "description": "A medium-build male with medium skin tone, wearing a black long-sleeve top with light detailing on the shoulders and matching black pants.",
+    "tag": "A"
+  },
+  "male_35": {
+    "description": "A medium-build male with dark skin tone, wearing a fitted black long-sleeve top and matching black pants.",
+    "tag": "A"
+  },
+  "male_36": {
+    "description": "A medium-build male with medium skin tone, wearing a brown medieval-style tunic, beige pants, and tall brown boots.",
+    "tag": "None"
+  },
+  "male_37": {
+    "description": "A medium-build male with light to medium skin tone, wearing a black long-sleeve top with silver shoulder accents and matching black pants.",
+    "tag": "A"
+  },
+  "male_38": {
+    "description": "A muscular male with light skin tone, wearing a black and red superhero-style outfit with circular armor plates on the back and fitted black pants.",
+    "tag": "None"
+  },
+  "male_39": {
+    "description": "A fit male with light to medium skin tone, wearing a red and black armored superhero-style suit with angular chest and shoulder designs.",
+    "tag": "None"
+  },
+  "male_40": {
+    "description": "A stocky male with medium to dark skin tone, wearing a black short-sleeve top with brown tactical straps and matching dark pants.",
+    "tag": "None"
+  },
+  "male_41": {
+    "description": "A medium-build male with medium skin tone, wearing a dark green long-sleeve top and two-tone pants with dark red on one leg and green on the other.",
+    "tag": "None"
+  },
+  "male_42": {
+    "description": "A medium-build male with light skin tone, wearing a black long-sleeve top with subtle shoulder accents and matching black pants.",
+    "tag": "A"
+  },
+  "male_43": {
+    "description": "A muscular male with medium skin tone, wearing a sleek black superhero-style bodysuit with gold accents and a textured design.",
+    "tag": "None"
+  },
+  "male_44": {
+    "description": "A muscular male with medium skin tone, wearing a dark gray and black armored suit with red accents on the chest and arms, and matching black tactical pants.",
+    "tag": "None"
+  },
+  "male_45": {
+    "description": "A fit male with light to medium skin tone, wearing a black and red armored bodysuit with metallic gray accents, featuring bright red panels on the arms, shoulders, and lower legs.",
+    "tag": "None"
+  },
+  "male_46": {
+    "description": "A medium-build male with light skin tone, wearing a predominantly black suit with deep red accents on the shoulders, sides, and thighs.",
+    "tag": "None"
+  },
+  "male_47": {
+    "description": "A stocky male with light to medium skin tone, wearing a dark brown and black armored outfit with muted red highlights on the shoulders, back, and knees.",
+    "tag": "None"
+  },
+  "male_48": {
+    "description": "A muscular male with medium to dark skin tone, wearing a black armored suit with glossy finish and faint silver highlights on the chest and shoulders.",
+    "tag": "None"
+  },
+  "male_49": {
+    "description": "A slim male with light to medium skin tone, wearing a smooth, form-fitting dark gray bodysuit with subtle shading along the back and limbs.",
+    "tag": "None"
+  },
+  "male_50": {
+    "description": "A muscular male with light skin tone, wearing a light gray armored suit with dark gray accents and a segmented, sci-fi-inspired design on the back and limbs.",
+    "tag": "None"
+  },
+  "male_51": {
+    "description": "A fit male with medium skin tone, wearing a glossy black suit with silver highlights and vertical armor-like ridges along the back and legs.",
+    "tag": "None"
+  },
+  "male_52": {
+    "description": "A fit male with dark skin tone, wearing a bright red long-sleeve top with a thick black horizontal stripe across the back, paired with grayish pants and red socks.",
+    "tag": "None"
+  },
+  "male_53": {
+    "description": "A medium-build male with medium skin tone, wearing a black tactical suit with a yellow utility belt and matching black pants.",
+    "tag": "None"
+  },
+  "male_54": {
+    "description": "A stocky male with light skin tone, wearing a black sleeveless vest over a beige and dark blue long-sleeve shirt, paired with dark pants.",
+    "tag": "None"
+  },
+  "male_55": {
+    "description": "A muscular male with dark skin tone, wearing a black armored suit with sculpted padding and a prominent brown utility belt, paired with matching black pants.",
+    "tag": "None"
+  },
+  "male_56": {
+    "description": "A muscular male with dark skin tone, wearing a solid dark blue long-sleeve top and matching dark blue fitted pants.",
+    "tag": "None"
+  },
+  "male_57": {
+    "description": "A medium-build male with medium skin tone, dressed in a dark olive green outfit consisting of a fitted long-sleeve top and matching pants.",
+    "tag": "None"
+  },
+  "male_58": {
+    "description": "A medium-build male with light skin tone, wearing a green tactical outfit with brown armor plating on the upper back, waist, and boots.",
+    "tag": "None"
+  },
+  "male_59": {
+    "description": "A medium-build male with light skin tone, wearing a black tactical suit with a beige and red utility belt and dark pants.",
+    "tag": "None"
+  },
+  "male_60": {
+    "description": "A medium-build male with light skin tone, dressed in a dark gray and black suit featuring red accents on the lower legs and subtle metallic textures throughout the outfit.",
+    "tag": "None"
+  },
+  "male_61": {
+    "description": "A medium-build male with medium skin tone, wearing an all-black fitted outfit that covers the body from neck to ankles.",
+    "tag": "A"
+  },
+  "male_62": {
+    "description": "A medium-build male with medium skin tone, wearing a black suit with prominent dark red sleeves and accents.",
+    "tag": "None"
+  },
+  "male_63": {
+    "description": "A medium-build male with dark skin tone, wearing a predominantly black tactical suit featuring beige-gray segmented patterns across the back, arms, and legs, creating a futuristic, armored appearance.",
+    "tag": "None"
+  },
+  "male_64": {
+    "description": "A medium-build male with medium skin tone, wearing a light gray long-sleeve top and dark gray pants.",
+    "tag": "None"
+  }
+}

@@ -39,6 +39,9 @@ class AgentHumanoid:
     def __init__(self, sim, base_pos: mn.Vector3, name ,motion_path=None, is_target=False):
         self.sim = sim
         self.is_target = is_target
+        self.humanoid = None
+        self.controller = None
+        self.remove_from_scene()
         self.humanoid, self.controller = self._load_humanoid(sim,name, motion_path)
         self.humanoid.base_pos = base_pos
         # self.pos = base_pos
@@ -52,9 +55,12 @@ class AgentHumanoid:
         self.time_step = 0
         self.humanoid, self.controller = self._load_humanoid(self.sim, name, None)
         return
-
+    def remove_from_scene(self):
+        if hasattr(self.humanoid, "sim_obj") and self.humanoid.sim_obj is not None:
+            self.sim.remove_articulated_object(self.humanoid.sim_obj.object_id)
+            self.humanoid.sim_obj = None  # 防止重复删除
     def _load_humanoid(self, sim, humanoid_name,motion_path=None):
-
+        self.remove_from_scene()
         # data_root = "human_follower/habitat_humanoids"
         data_root = "human_follower/humanoid_data"
         urdf_path = f"{data_root}/{humanoid_name}/{humanoid_name}.urdf"
