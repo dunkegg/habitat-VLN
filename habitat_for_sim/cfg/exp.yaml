@@ -2,15 +2,15 @@
 seed: 42
 exp_name: view_sample
 output_parent_dir: results/sample1
-scenes_data_path: /data2/zejinw/data/scene_datasets/hm3d/val
+
 save_obs: true
 save_freq: 10
 multi_agent: true
-scenes_dir: /data2/zejinw/data/scene_datasets/hm3d/val
-json_file_path: /data2/zejinw/ON-MLLM/hm3d/ovon_data/hm3d/val_seen/content
+scenes_data_path: /home/wangzejin/habitat/goat_bench/data/scene_datasets/hm3d/train
+json_file_path: /home/wangzejin/habitat/goat_bench/data/datasets/goat_bench/hm3d/v1/train/content
 teacher_forcing_module: true
 simple_sample_method: true
-
+max_episodes: 50000
 
 
 # Camera, image
